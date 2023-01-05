@@ -1,0 +1,24 @@
+{
+  "name": "@hiogawa/pdf-rs-wasm",
+  "version": "1.0.0-pre.0",
+  "type": "module",
+  "main": "./pkg/index.js",
+  "types": "./pkg/index.d.ts",
+  "files": [
+    "pkg/*"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-name index ${BUILD_TYPE:---release} && rm -f pkg/package.json pkg/.gitignore pkg/README.md",
+    "build-dev": "BUILD_TYPE=--dev pnpm build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@tsconfig/strictest": "^1.0.2",
+    "typescript": "^4.9.4",
+    "vitest": "^0.26.3",
+    "wasm-pack": "^0.10.3"
+  },
+  "volta": {
+    "node": "16.19.0"
+  }
+}

@@ -1,0 +1,6 @@
+[submodule "thirdparty/pdf"]
+	path = thirdparty/pdf
+	url = https://github.com/pdf-rs/pdf
+[submodule "thirdparty/cachelib"]
+	path = thirdparty/cachelib
+	url = https://github.com/s3bk/cachelib
