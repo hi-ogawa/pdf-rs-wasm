@@ -4,3 +4,9 @@
 [submodule "thirdparty/cachelib"]
 	path = thirdparty/cachelib
 	url = https://github.com/s3bk/cachelib
+[submodule "thirdparty/pdf_render"]
+	path = thirdparty/pdf_render
+	url = https://github.com/pdf-rs/pdf_render
+[submodule "thirdparty/pdf_fonts"]
+	path = thirdparty/pdf_fonts
+	url = https://github.com/s3bk/pdf_fonts

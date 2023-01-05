@@ -8,6 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pdf = { path = "thirdparty/pdf/pdf" }
+pdf_render = { path = "thirdparty/pdf_render/render" }
 wasm-bindgen = { version = "0.2.83" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
