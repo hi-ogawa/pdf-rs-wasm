@@ -4,11 +4,15 @@
 patch:
 	git -C thirdparty/cachelib apply < thirdparty/cachelib.diff
 	git -C thirdparty/pdf apply < thirdparty/pdf.diff
+	git -C thirdparty/pdf_render apply < thirdparty/pdf_render.diff
 
 patch/clean:
 	git -C thirdparty/cachelib restore .
 	git -C thirdparty/pdf restore .
+	git -C thirdparty/pdf_render restore .
+	git -C thirdparty/pdf_fonts restore .
 
 patch/create:
 	git -C thirdparty/cachelib diff > thirdparty/cachelib.diff
 	git -C thirdparty/pdf diff > thirdparty/pdf.diff
+	git -C thirdparty/pdf_render diff > thirdparty/pdf_render.diff
