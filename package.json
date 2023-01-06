@@ -16,7 +16,7 @@
     "lint:prettier": "prettier --write --cache .",
     "lint-check:prettier": "prettier --check --cache .",
     "lint:cargo-fmt": "cargo fmt",
-    "lint-check:cargo-fmt": "cargo fmt --all --check"
+    "lint-check:cargo-fmt": "cargo fmt --check"
   },
   "devDependencies": {
     "@tsconfig/strictest": "^1.0.2",
