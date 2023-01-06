@@ -1,4 +1,8 @@
 use pdf::content::Op;
+use pdf_render::{
+    render_page,
+    tracer::{TraceCache, Tracer},
+};
 use serde::{Serialize, Serializer};
 use wasm_bindgen::prelude::*;
 
@@ -7,7 +11,7 @@ pub struct PdfParser {}
 
 #[wasm_bindgen]
 impl PdfParser {
-    pub fn parse(data: &[u8]) -> Result<JsValue, JsError> {
+    pub fn parse_operations(data: &[u8]) -> Result<JsValue, JsError> {
         let file = pdf::file::File::from_data(data)?;
 
         let mut js_file = JsPdfFile::default();
@@ -24,6 +28,22 @@ impl PdfParser {
         }
 
         Ok(serde_wasm_bindgen::to_value(&js_file)?)
+    }
+
+    pub fn parse_trace(data: &[u8]) -> Result<JsValue, JsError> {
+        let file = pdf::file::File::from_data(data)?;
+        let mut cache = TraceCache::new_embedded();
+        let mut result: Vec<String> = vec![];
+        for page in file.pages() {
+            let page = page?;
+            let mut backend = Tracer::new(&mut cache);
+            render_page(&mut backend, &file, &page, Default::default()).unwrap();
+            let items = backend.finish();
+            for item in items {
+                result.push(format!("{:?}", item));
+            }
+        }
+        Ok(serde_wasm_bindgen::to_value(&result)?)
     }
 }
 
