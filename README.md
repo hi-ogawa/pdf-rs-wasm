@@ -1,6 +1,7 @@
 # pdf-rs-wasm
 
-wasm-bindgen for [pdf-rs](https://github.com/pdf-rs/pdf).
+[wasm-bindgen](https://github.com/rustwasm/wasm-bindgen/) for [pdf-rs](https://github.com/pdf-rs/pdf).
+the goal is to be a robust replacement of [pdf2json](https://github.com/modesty/pdf2json) on Javascript ecosystem.
 
 ```sh
 git submodule update --init
@@ -9,7 +10,4 @@ make patch
 pnpm i
 pnpm build
 pnpm test
-
-cd thirdparty/pdf_render
-STANDARD_FONTS=../pdf_fonts cargo run -p pdf_render --example trace -- ../pdf/files/example.pdf
 ```
