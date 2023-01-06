@@ -1,3 +1,4 @@
+use pdf::content::Op;
 use serde::{Serialize, Serializer};
 use wasm_bindgen::prelude::*;
 
@@ -35,16 +36,35 @@ struct JsPdfFile {
 struct JsPdfPage {
     operations: Vec<JsPdfOp>,
 }
-struct JsPdfOp(pdf::content::Op);
+struct JsPdfOp(Op);
 
 impl Serialize for JsPdfOp {
     fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
+        let op = &self.0;
         // TODO
-        match self.0 {
-            _ => ser.serialize_str(&format!("{:?}", self.0)),
+        // use serde::ser::{SerializeStruct, SerializeStructVariant};
+        // match op {
+        //     Op::TextDraw { text } => {
+        //         let mut ser = ser.serialize_struct_variant("Op", 0, "TextDraw", 1)?;
+        //         ser.serialize_field(
+        //             "text",
+        //             &text
+        //                 .to_string_lossy()
+        //                 .map_or("__INVALID__".to_string(), |v| v.clone()),
+        //         )?;
+        //         ser.end()
+        //     }
+        //     _ => {
+        //         let mut ser = ser.serialize_struct("__OTHER__", 1)?;
+        //         ser.serialize_field("__DEBUG__", &format!("{:?}", op))?;
+        //         ser.end()
+        //     }
+        // }
+        match op {
+            _ => ser.serialize_str(&format!("{:?}", op)),
         }
     }
 }
