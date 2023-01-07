@@ -1,5 +1,5 @@
 diff --git a/render/Cargo.toml b/render/Cargo.toml
-index 1b14cea..766961b 100644
+index 1b14cea..9afbae5 100644
 --- a/render/Cargo.toml
 +++ b/render/Cargo.toml
 @@ -12,8 +12,8 @@ name = "render"
@@ -13,7 +13,7 @@ index 1b14cea..766961b 100644
  
  [dependencies]
  pathfinder_renderer = { git = "https://github.com/servo/pathfinder" }
-@@ -28,10 +28,12 @@ itertools = "*"
+@@ -28,10 +28,13 @@ itertools = "*"
  image = "0.24.2"
  instant = "*"
  custom_debug_derive = "*"
@@ -23,6 +23,7 @@ index 1b14cea..766961b 100644
  once_cell = "*"
  serde_json = "*"
 +serde = { version = "1.0", features = ["derive"] }
++serde_with = "2.1.0"
 +schemars = "0.8.11"
  
  [dev-dependencies]
@@ -77,8 +78,85 @@ index accf9cf..8e4be2a 100644
              let name = match pdf_font.name {
                  Some(ref name) => name.as_str(),
                  None => return Ok(None)
+diff --git a/render/src/fontentry.rs b/render/src/fontentry.rs
+index 0398dd3..449ed22 100644
+--- a/render/src/fontentry.rs
++++ b/render/src/fontentry.rs
+@@ -27,10 +27,10 @@ impl FontEntry {
+         let mut is_cid = pdf_font.is_cid();
+         let encoding = pdf_font.encoding().clone();
+         let base_encoding = encoding.as_ref().map(|e| &e.base);
+-        
++
+         let to_unicode = t!(pdf_font.to_unicode(resolve).transpose());
+         let mut font_codepoints = None;
+-        let glyph_unicode: HashMap<GlyphId, SmallString> = 
++        let glyph_unicode: HashMap<GlyphId, SmallString> =
+         if let Some(type1) = font.downcast_ref::<Type1Font>() {
+             debug!("Font is Type1");
+             font_codepoints = Some(&type1.codepoints);
+@@ -45,7 +45,7 @@ impl FontEntry {
+                 .filter_map(|gid| std::char::from_u32(gid).map(|c| (GlyphId(gid), c.into())))
+                 .collect()
+         };
+-        
++
+         debug!("to_unicode: {:?}", to_unicode);
+         let build_map = || {
+             if let Some(ref to_unicode) = to_unicode {
+@@ -76,7 +76,7 @@ impl FontEntry {
+                 None
+             }
+         };
+-        
++
+         let encoding = if let Some(map) = pdf_font.cid_to_gid_map() {
+             is_cid = true;
+             debug!("gid to cid map: {:?}", map);
+@@ -156,8 +156,8 @@ impl FontEntry {
+                         warn!("can't translate from text encoding {:?} to font encoding {:?}", base_encoding, font_encoding);
+                     }
+                     // assuming same encoding
+-                    
+-                    
++
++
+                 }
+             }
+             if let Some(encoding) = encoding {
+@@ -168,10 +168,10 @@ impl FontEntry {
+                     ).or_else(||
+                         font.gid_for_codepoint(cp)
+                     ).unwrap_or(GlyphId(cp));
+-                    
++
+                     let unicode = uni.map(|s| s.into())
+                         .or_else(|| std::char::from_u32(0xf000 + gid.0).map(SmallString::from));
+-                    
++
+                     debug!("{} -> gid {:?}, unicode {:?}", cp, gid, unicode);
+                     cmap.insert(cp as u16, (gid, unicode));
+                 }
+@@ -196,7 +196,7 @@ impl FontEntry {
+                     }
+                 }
+             }
+-            
++
+             debug!("cmap: {:?}", &cmap);
+ 
+             if cmap.len() == 0 {
+@@ -205,7 +205,7 @@ impl FontEntry {
+                 TextEncoding::Cmap(cmap)
+             }
+         };
+-        
++
+         let widths = pdf_font.widths(resolve)?;
+         let name = pdf_font.name.as_ref().ok_or_else(|| PdfError::Other { msg: "font has no name".into() })?.as_str().into();
+         Ok(FontEntry {
 diff --git a/render/src/lib.rs b/render/src/lib.rs
-index f16a06a..ea7876e 100644
+index f16a06a..f62687e 100644
 --- a/render/src/lib.rs
 +++ b/render/src/lib.rs
 @@ -6,7 +6,7 @@ macro_rules! assert_eq {
@@ -110,27 +188,27 @@ index f16a06a..ea7876e 100644
  }
  
 -#[derive(Debug)]
-+// #[derive(serde::Serialize)]
-+// #[serde(remote = "RectF")]
-+// struct RemoteRectF(F32x4);
-+
-+#[allow(non_snake_case)]
-+fn serialize_RectF<S>(value: &RectF, s: S) -> Result<S::Ok, S::Error>
-+where
-+    S: serde::Serializer,
-+{
-+    use serde::ser::SerializeStruct;
-+
-+    let mut s = s.serialize_struct("RectF", 2)?;
-+    s.serialize_field("x", &value.origin_x())?;
-+    s.serialize_field("y", &value.origin_y())?;
-+    s.end()
++#[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
++struct LocalRectF {
++    x: f32,
++    y: f32,
++    w: f32,
++    h: f32,
 +}
 +
-+#[derive(serde::Serialize, Debug)]
++serde_with::serde_conv!(
++    AsLocalRectF,
++    RectF,
++    |remote: &RectF| LocalRectF { x: remote.origin_x(), y: remote.origin_y(), w: remote.width(), h: remote.height() },
++    |_: LocalRectF| -> Result<RectF, _> { Err("RectF") }
++);
++
++
++#[derive(serde::Serialize, schemars::JsonSchema, Debug)]
  pub struct TextSpan {
      // A rect with the origin at the baseline, a height of 1em and width that corresponds to the advance width.
-+    #[serde(serialize_with = "serialize_RectF")]
++    #[serde(with = "AsLocalRectF")]
++    #[schemars(with = "LocalRectF")]
      pub rect: RectF,
  
      // width in textspace units (before applying transform)
@@ -162,7 +240,7 @@ index f16a06a..ea7876e 100644
 \ No newline at end of file
 +}
 diff --git a/render/src/tracer.rs b/render/src/tracer.rs
-index a6797ed..9fd573e 100644
+index a6797ed..2e2fb86 100644
 --- a/render/src/tracer.rs
 +++ b/render/src/tracer.rs
 @@ -10,7 +10,7 @@ use pathfinder_geometry::{
@@ -202,7 +280,7 @@ index a6797ed..9fd573e 100644
  }
  
 -#[derive(Debug)]
-+#[derive(serde::Serialize, Debug)]
++#[derive(serde::Serialize, schemars::JsonSchema, Debug)]
  pub enum DrawItem {
      Vector(VectorPath),
 +    #[serde(skip)]
@@ -215,7 +293,7 @@ index a6797ed..9fd573e 100644
  }
  
 -#[derive(Debug)]
-+#[derive(serde::Serialize, Debug)]
++#[derive(serde::Serialize, schemars::JsonSchema, Debug)]
  pub struct VectorPath {
 +    #[serde(skip)]
      pub outline: Outline,

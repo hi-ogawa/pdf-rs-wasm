@@ -64,25 +64,29 @@ describe("PdfParser", () => {
     const data = await fs.promises.readFile("thirdparty/pdf/files/example.pdf");
     const result = PdfParser.parse_trace(data);
     expect(result).toMatchInlineSnapshot(`
-      [
-        [
+      {
+        "pages": [
           {
-            "Vector": {},
-          },
-          {
-            "Text": {
-              "alpha": 1,
-              "font_size": 24,
-              "rect": {
-                "x": 9.059334,
-                "y": 5.6444397,
+            "items": [
+              {
+                "Vector": {},
               },
-              "text": "Hello World!",
-              "width": 130.68001,
-            },
+              {
+                "Text": {
+                  "alpha": 1,
+                  "font_size": 24,
+                  "rect": {
+                    "x": 9.059334,
+                    "y": 5.6444397,
+                  },
+                  "text": "Hello World!",
+                  "width": 130.68001,
+                },
+              },
+            ],
           },
         ],
-      ]
+      }
     `);
   });
 });

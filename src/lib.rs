@@ -32,19 +32,29 @@ impl PdfParser {
         Ok(JsValue::from_serde(&js_file)?.into())
     }
 
-    pub fn parse_trace(data: &[u8]) -> Result<JsValue, JsError> {
+    pub fn parse_trace(data: &[u8]) -> Result<FileTraceDts, JsError> {
         let file = pdf::file::File::from_data(data)?;
         let mut cache = TraceCache::new_embedded();
-        let mut result: Vec<Vec<DrawItem>> = vec![];
+        let mut result = FileTrace::default();
         for page in file.pages() {
             let page = page?;
             let mut backend = Tracer::new(&mut cache);
             render_page(&mut backend, &file, &page, Default::default()).unwrap();
             let items = backend.finish();
-            result.push(items);
+            result.pages.push(PageTrace { items });
         }
         Ok(JsValue::from_serde(&result)?.into())
     }
+}
+
+#[derive(Serialize, JsonSchema, Default)]
+struct FileTrace {
+    pages: Vec<PageTrace>,
+}
+
+#[derive(Serialize, JsonSchema, Default)]
+struct PageTrace {
+    items: Vec<DrawItem>,
 }
 
 #[derive(Serialize, JsonSchema, Default)]
@@ -79,14 +89,17 @@ impl JsPdfOp {
 extern "C" {
     #[wasm_bindgen(typescript_type = "JsPdfFile")]
     pub type JsPdfFileDts;
+
+    #[wasm_bindgen(typescript_type = "FileTrace")]
+    pub type FileTraceDts;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
 const TYPESCRIPT_EXTRA: &'static str = r#"
 /* __TYPESCRIPT_EXTRA__START__ */
 
-import { JsPdfFile } from "./types";
-export { JsPdfFile }
+import { JsPdfFile, FileTrace } from "./types";
+export { JsPdfFile, FileTrace }
 
 /* __TYPESCRIPT_EXTRA__END__ */
 "#;
@@ -99,7 +112,7 @@ pub mod tests {
 
     #[wasm_bindgen_test]
     fn export_json_schema() {
-        let schema = schema_for!(super::JsPdfFile);
+        let schema = schema_for!(super::FileTrace);
         let schema_str = serde_json::to_string_pretty(&schema).unwrap();
         if cfg!(feature = "export_json_schema") {
             console::log_1(&"__JSON_SCHEMA_START__".into());
