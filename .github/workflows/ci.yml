@@ -15,6 +15,6 @@ jobs:
           node-version: 16
       - run: pnpm i --frozen-lockfile
       - run: pnpm lint-check
-      - run: make patch
+      - run: make hack-wasm-bindgen-test-esm
       - run: pnpm build
       - run: pnpm test
