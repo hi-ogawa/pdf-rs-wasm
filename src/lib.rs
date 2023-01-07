@@ -1,8 +1,10 @@
+use gloo_utils::format::JsValueSerdeExt;
 use pdf::content::Op;
 use pdf_render::{
     render_page,
-    tracer::{TraceCache, Tracer},
+    tracer::{DrawItem, TraceCache, Tracer},
 };
+use schemars::JsonSchema;
 use serde::{Serialize, Serializer};
 use wasm_bindgen::prelude::*;
 
@@ -11,7 +13,7 @@ pub struct PdfParser {}
 
 #[wasm_bindgen]
 impl PdfParser {
-    pub fn parse_operations(data: &[u8]) -> Result<JsValue, JsError> {
+    pub fn parse_operations(data: &[u8]) -> Result<JsPdfFileDts, JsError> {
         let file = pdf::file::File::from_data(data)?;
 
         let mut js_file = JsPdfFile::default();
@@ -21,70 +23,88 @@ impl PdfParser {
 
             if let Some(contents) = page?.contents.as_ref() {
                 let ops = contents.operations(&file)?;
-                js_page.operations = ops.iter().map(|op| JsPdfOp(op.clone())).collect();
+                js_page.operations = ops.iter().map(|op| JsPdfOp::new(op.clone())).collect();
             }
 
             js_file.pages.push(js_page);
         }
 
-        Ok(serde_wasm_bindgen::to_value(&js_file)?)
+        Ok(JsValue::from_serde(&js_file)?.into())
     }
 
     pub fn parse_trace(data: &[u8]) -> Result<JsValue, JsError> {
         let file = pdf::file::File::from_data(data)?;
         let mut cache = TraceCache::new_embedded();
-        let mut result: Vec<String> = vec![];
+        let mut result: Vec<Vec<DrawItem>> = vec![];
         for page in file.pages() {
             let page = page?;
             let mut backend = Tracer::new(&mut cache);
             render_page(&mut backend, &file, &page, Default::default()).unwrap();
             let items = backend.finish();
-            for item in items {
-                result.push(format!("{:?}", item));
-            }
+            result.push(items);
         }
-        Ok(serde_wasm_bindgen::to_value(&result)?)
+        Ok(JsValue::from_serde(&result)?.into())
     }
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, JsonSchema, Default)]
 struct JsPdfFile {
     pages: Vec<JsPdfPage>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, JsonSchema, Default)]
 struct JsPdfPage {
     operations: Vec<JsPdfOp>,
 }
-struct JsPdfOp(Op);
+#[derive(Serialize, JsonSchema)]
+struct JsPdfOp {
+    #[serde(skip)]
+    #[allow(unused)]
+    inner: Op,
+    debug: String,
+}
 
-impl Serialize for JsPdfOp {
-    fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let op = &self.0;
-        // TODO
-        // use serde::ser::{SerializeStruct, SerializeStructVariant};
-        // match op {
-        //     Op::TextDraw { text } => {
-        //         let mut ser = ser.serialize_struct_variant("Op", 0, "TextDraw", 1)?;
-        //         ser.serialize_field(
-        //             "text",
-        //             &text
-        //                 .to_string_lossy()
-        //                 .map_or("__INVALID__".to_string(), |v| v.clone()),
-        //         )?;
-        //         ser.end()
-        //     }
-        //     _ => {
-        //         let mut ser = ser.serialize_struct("__OTHER__", 1)?;
-        //         ser.serialize_field("__DEBUG__", &format!("{:?}", op))?;
-        //         ser.end()
-        //     }
-        // }
-        match op {
-            _ => ser.serialize_str(&format!("{:?}", op)),
+impl JsPdfOp {
+    fn new(inner: Op) -> Self {
+        let debug = format!("{:?}", inner);
+        Self { inner, debug }
+    }
+}
+
+//
+// export typing via json-schema
+//
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "JsPdfFile")]
+    pub type JsPdfFileDts;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const TYPESCRIPT_EXTRA: &'static str = r#"
+/* __TYPESCRIPT_EXTRA__START__ */
+
+import { JsPdfFile } from "./types";
+export { JsPdfFile }
+
+/* __TYPESCRIPT_EXTRA__END__ */
+"#;
+
+#[cfg(test)]
+pub mod tests {
+    use schemars::schema_for;
+    use wasm_bindgen_test::*;
+    use web_sys::console;
+
+    #[wasm_bindgen_test]
+    fn export_json_schema() {
+        let schema = schema_for!(super::JsPdfFile);
+        let schema_str = serde_json::to_string_pretty(&schema).unwrap();
+        if cfg!(feature = "export_json_schema") {
+            console::log_1(&"__JSON_SCHEMA_START__".into());
+            console::log_1(&schema_str.into());
+            console::log_1(&"__JSON_SCHEMA_END__".into());
         }
     }
 }

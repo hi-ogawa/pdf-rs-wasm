@@ -16,3 +16,8 @@ patch/create:
 	git -C thirdparty/cachelib diff > thirdparty/cachelib.diff
 	git -C thirdparty/pdf diff > thirdparty/pdf.diff
 	git -C thirdparty/pdf_render diff > thirdparty/pdf_render.diff
+
+# force target/wasm32-unknown-unknown/wbg-tmp/run.js to be treated as commonjs
+hack-wasm-bindgen-test-esm:
+	mkdir -p target
+	echo '{ "module": "commonjs" }' > target/package.json

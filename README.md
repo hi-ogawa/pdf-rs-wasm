@@ -6,6 +6,7 @@ the goal is to be a robust replacement of [pdf2json](https://github.com/modesty/
 ```sh
 git submodule update --init
 make patch
+make hack-wasm-bindgen-test-esm
 
 pnpm i
 pnpm build
