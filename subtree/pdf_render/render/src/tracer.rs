@@ -3,7 +3,6 @@ use crate::font::{load_font, StandardCache};
 use crate::{Backend, DrawMode, Fill, FontEntry, TextSpan};
 use font::Glyph;
 use globalcache::sync::SyncCache;
-use pathfinder_content::stroke::StrokeStyle;
 use pathfinder_content::{fill::FillRule, outline::Outline};
 use pathfinder_geometry::{rect::RectF, transform2d::Transform2F, vector::Vector2F};
 use pdf::error::PdfError;
@@ -29,6 +28,13 @@ impl TraceCache {
         TraceCache {
             fonts: SyncCache::new(),
             std: StandardCache::new(standard_fonts),
+        }
+    }
+
+    pub fn new_embedded() -> Self {
+        TraceCache {
+            fonts: SyncCache::new(),
+            std: StandardCache::new_embedded(),
         }
     }
 }
