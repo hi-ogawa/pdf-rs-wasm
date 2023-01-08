@@ -27,7 +27,7 @@ mod graphicsstate;
 mod image;
 mod renderstate;
 mod scene;
-mod serde_utils;
+pub mod serde_utils;
 mod textstate;
 pub mod tracer;
 
@@ -39,7 +39,8 @@ pub use fontentry::{FontEntry, TextEncoding};
 pub use scene::SceneBackend;
 
 use itertools::Itertools;
-use pathfinder_geometry::{rect::RectF, transform2d::Transform2F, vector::Vector2F};
+pub use pathfinder_geometry::rect::RectF;
+use pathfinder_geometry::{transform2d::Transform2F, vector::Vector2F};
 use pdf::error::PdfError;
 use pdf::object::*;
 use renderstate::RenderState;

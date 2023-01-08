@@ -2,9 +2,11 @@ use gloo_utils::format::JsValueSerdeExt;
 use pdf_render::{
     render_page,
     tracer::{DrawItem, TraceCache, Tracer},
+    RectF,
 };
 use schemars::JsonSchema;
 use serde::Serialize;
+use serde_with::serde_as;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -39,8 +41,9 @@ impl PdfParser {
             let page = page?;
             let mut backend = Tracer::new(&mut cache);
             render_page(&mut backend, &file, &page, Default::default())?;
+            let view_box = backend.view_box();
             let items = backend.finish();
-            result.pages.push(JsPdfPageTrace { items });
+            result.pages.push(JsPdfPageTrace { view_box, items });
         }
         Ok(JsValue::from_serde(&result)?.into())
     }
@@ -61,8 +64,12 @@ struct JsPdfFileTrace {
     pages: Vec<JsPdfPageTrace>,
 }
 
+#[serde_as]
 #[derive(Serialize, JsonSchema, Default)]
 struct JsPdfPageTrace {
+    #[schemars(with = "pdf_render::serde_utils::LocalRectF")]
+    #[serde_as(as = "pdf_render::serde_utils::AsLocalRectF")]
+    view_box: RectF,
     items: Vec<DrawItem>,
 }
 
