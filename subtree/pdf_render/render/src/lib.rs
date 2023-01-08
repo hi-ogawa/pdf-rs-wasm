@@ -27,6 +27,7 @@ mod graphicsstate;
 mod image;
 mod renderstate;
 mod scene;
+mod serde_utils;
 mod textstate;
 pub mod tracer;
 
@@ -42,6 +43,9 @@ use pathfinder_geometry::{rect::RectF, transform2d::Transform2F, vector::Vector2
 use pdf::error::PdfError;
 use pdf::object::*;
 use renderstate::RenderState;
+use schemars::JsonSchema;
+use serde::Serialize;
+use serde_with::serde_as;
 use std::sync::Arc;
 const SCALE: f32 = 25.4 / 72.;
 
@@ -145,24 +149,33 @@ impl Fill {
     }
 }
 
-#[derive(Debug)]
+#[serde_as]
+#[derive(Serialize, JsonSchema, Debug)]
 pub struct TextSpan {
     // A rect with the origin at the baseline, a height of 1em and width that corresponds to the advance width.
+    #[schemars(with = "serde_utils::LocalRectF")]
+    #[serde_as(as = "serde_utils::AsLocalRectF")]
     pub rect: RectF,
 
     // width in textspace units (before applying transform)
     pub width: f32,
     // Bounding box of the rendered outline
+    #[schemars(with = "serde_utils::LocalOptionRectF")]
+    #[serde_as(as = "Option<serde_utils::AsLocalRectF>")]
     pub bbox: Option<RectF>,
     pub font_size: f32,
+    #[serde(skip)]
     #[debug(skip)]
     pub font: Option<Arc<FontEntry>>,
     pub text: String,
+    #[serde(skip)]
     pub chars: Vec<TextChar>,
+    #[serde(skip)]
     pub color: Fill,
     pub alpha: f32,
 
     // apply this transform to a text draw in at the origin with the given width and font-size
+    #[serde(skip)]
     pub transform: Transform2F,
 }
 impl TextSpan {

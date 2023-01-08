@@ -44,8 +44,29 @@ describe("PdfParser", () => {
         "pages": [
           {
             "items": [
-              "Vector(VectorPath { outline: M 21.68 194 L 158.32 194 L 158.32 220 L 21.68 220 z M 10 10 L 20 20, fill: None, stroke: Some((Solid(0.0, 0.0, 0.972549), 1.0, Stroke { dash_pattern: None, style: StrokeStyle { line_width: 1.0, line_cap: Butt, line_join: Miter(1.0) } })), transform: Transform2F { matrix: Matrix2x2F(<0.35277778, 0, 0, -0.35277778>), vector: Vector2F(F32x2([0.0, 84.666664])) } })",
-              "Text(TextSpan { rect: RectF(<9.059334, 5.6444397, 55.16034, 14.111107>), width: 130.68001, bbox: Some(RectF(<3.4438403, 79.61988, 19.250261, 81.86599>)), font_size: 24.0, text: \\"Hello World!\\", chars: [TextChar { offset: 0, pos: 0.0, width: 17.328001 }, TextChar { offset: 1, pos: 17.328001, width: 13.344 }, TextChar { offset: 2, pos: 30.672, width: 5.328 }, TextChar { offset: 3, pos: 36.0, width: 5.328 }, TextChar { offset: 4, pos: 41.328, width: 13.344 }, TextChar { offset: 6, pos: 61.343998, width: 22.656 }, TextChar { offset: 7, pos: 84.0, width: 13.344 }, TextChar { offset: 8, pos: 97.344, width: 7.992 }, TextChar { offset: 9, pos: 105.336, width: 5.328 }, TextChar { offset: 10, pos: 110.664, width: 13.344 }, TextChar { offset: 11, pos: 124.008, width: 6.672 }], color: Solid(0.0, 0.0, 0.0), alpha: 1.0, transform: Transform2F { matrix: Matrix2x2F(<0.35277778, 0, 0, 0.35277778>), vector: Vector2F(F32x2([9.059334, 14.111107])) } })",
+              {
+                "Vector": {},
+              },
+              {
+                "Text": {
+                  "alpha": 1,
+                  "bbox": {
+                    "h": 2.246109,
+                    "w": 15.806421,
+                    "x": 3.4438403,
+                    "y": 79.61988,
+                  },
+                  "font_size": 24,
+                  "rect": {
+                    "h": 8.466667,
+                    "w": 46.101006,
+                    "x": 9.059334,
+                    "y": 5.6444397,
+                  },
+                  "text": "Hello World!",
+                  "width": 130.68001,
+                },
+              },
             ],
           },
         ],

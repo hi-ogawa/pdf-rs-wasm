@@ -1,7 +1,7 @@
 use gloo_utils::format::JsValueSerdeExt;
 use pdf_render::{
     render_page,
-    tracer::{TraceCache, Tracer},
+    tracer::{DrawItem, TraceCache, Tracer},
 };
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -40,9 +40,7 @@ impl PdfParser {
             let mut backend = Tracer::new(&mut cache);
             render_page(&mut backend, &file, &page, Default::default())?;
             let items = backend.finish();
-            result.pages.push(JsPdfPageTrace {
-                items: items.iter().map(|op| format!("{:?}", op)).collect(),
-            });
+            result.pages.push(JsPdfPageTrace { items });
         }
         Ok(JsValue::from_serde(&result)?.into())
     }
@@ -65,7 +63,7 @@ struct JsPdfFileTrace {
 
 #[derive(Serialize, JsonSchema, Default)]
 struct JsPdfPageTrace {
-    items: Vec<String>,
+    items: Vec<DrawItem>,
 }
 
 //

@@ -8,6 +8,8 @@ use pathfinder_geometry::{rect::RectF, transform2d::Transform2F, vector::Vector2
 use pdf::error::PdfError;
 use pdf::font::Font as PdfFont;
 use pdf::object::{ImageXObject, MaybeRef, Ref, Resolve, Resources, XObject};
+use schemars::JsonSchema;
+use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -151,19 +153,26 @@ pub struct InlineImageObject {
     pub im: Arc<ImageXObject>,
 }
 
-#[derive(Debug)]
+#[derive(Serialize, JsonSchema, Debug)]
 pub enum DrawItem {
     Vector(VectorPath),
+    #[serde(skip)]
     Image(ImageObject),
+    #[serde(skip)]
     InlineImage(InlineImageObject),
     Text(TextSpan),
+    #[serde(skip)]
     ClipPath(Option<Outline>),
 }
 
-#[derive(Debug)]
+#[derive(Serialize, JsonSchema, Debug)]
 pub struct VectorPath {
+    #[serde(skip)]
     pub outline: Outline,
+    #[serde(skip)]
     pub fill: Option<(Fill, f32)>,
+    #[serde(skip)]
     pub stroke: Option<(Fill, f32, Stroke)>,
+    #[serde(skip)]
     pub transform: Transform2F,
 }
