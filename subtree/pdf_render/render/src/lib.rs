@@ -139,10 +139,16 @@ pub fn render_pattern(
     Ok(())
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[serde_as]
+#[derive(Serialize, JsonSchema, Copy, Clone, PartialEq, Debug)]
+#[serde(tag = "type", content = "data")]
 pub enum Fill {
     Solid(f32, f32, f32),
-    Pattern(Ref<Pattern>),
+    Pattern(
+        #[schemars(with = "crate::serde_utils::SerializeAsDebug")]
+        #[serde_as(as = "crate::serde_utils::SerializeAsDebug")]
+        Ref<Pattern>,
+    ),
 }
 impl Fill {
     pub fn black() -> Self {
@@ -165,18 +171,18 @@ pub struct TextSpan {
     #[serde_as(as = "Option<serde_utils::AsLocalRectF>")]
     pub bbox: Option<RectF>,
     pub font_size: f32,
-    #[serde(skip)]
+    #[schemars(with = "serde_utils::LocalOptionArcFontEntry")]
+    #[serde_as(as = "Option<serde_utils::AsLocalArcFontEntry>")]
     #[debug(skip)]
     pub font: Option<Arc<FontEntry>>,
     pub text: String,
-    #[serde(skip)]
     pub chars: Vec<TextChar>,
-    #[serde(skip)]
     pub color: Fill,
     pub alpha: f32,
 
     // apply this transform to a text draw in at the origin with the given width and font-size
-    #[serde(skip)]
+    #[schemars(with = "crate::serde_utils::SerializeAsDebug")]
+    #[serde_as(as = "crate::serde_utils::SerializeAsDebug")]
     pub transform: Transform2F,
 }
 impl TextSpan {
@@ -204,7 +210,7 @@ pub struct Part<'a> {
     pub width: f32,
     pub offset: usize,
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(serde::Serialize, schemars::JsonSchema, Debug, Clone, Copy)]
 pub struct TextChar {
     pub offset: usize,
     pub pos: f32,

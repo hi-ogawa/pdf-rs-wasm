@@ -10,6 +10,7 @@ use pdf::font::Font as PdfFont;
 use pdf::object::{ImageXObject, MaybeRef, Ref, Resolve, Resources, XObject};
 use schemars::JsonSchema;
 use serde::Serialize;
+use serde_with::serde_as;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -153,26 +154,37 @@ pub struct InlineImageObject {
     pub im: Arc<ImageXObject>,
 }
 
+#[serde_as]
 #[derive(Serialize, JsonSchema, Debug)]
+#[serde(tag = "type", content = "data")]
 pub enum DrawItem {
-    Vector(VectorPath),
-    #[serde(skip)]
-    Image(ImageObject),
-    #[serde(skip)]
-    InlineImage(InlineImageObject),
+    Vector(
+        #[schemars(with = "crate::serde_utils::SerializeAsDebug")]
+        #[serde_as(as = "crate::serde_utils::SerializeAsDebug")]
+        VectorPath,
+    ),
+    Image(
+        #[schemars(with = "crate::serde_utils::SerializeAsDebug")]
+        #[serde_as(as = "crate::serde_utils::SerializeAsDebug")]
+        ImageObject,
+    ),
+    InlineImage(
+        #[schemars(with = "crate::serde_utils::SerializeAsDebug")]
+        #[serde_as(as = "crate::serde_utils::SerializeAsDebug")]
+        InlineImageObject,
+    ),
     Text(TextSpan),
-    #[serde(skip)]
-    ClipPath(Option<Outline>),
+    ClipPath(
+        #[schemars(with = "crate::serde_utils::SerializeAsDebug")]
+        #[serde_as(as = "crate::serde_utils::SerializeAsDebug")]
+        Option<Outline>,
+    ),
 }
 
-#[derive(Serialize, JsonSchema, Debug)]
+#[derive(Debug)]
 pub struct VectorPath {
-    #[serde(skip)]
     pub outline: Outline,
-    #[serde(skip)]
     pub fill: Option<(Fill, f32)>,
-    #[serde(skip)]
     pub stroke: Option<(Fill, f32, Stroke)>,
-    #[serde(skip)]
     pub transform: Transform2F,
 }
