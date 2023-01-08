@@ -12,7 +12,6 @@ jobs:
         with:
           node-version: 16
       - uses: Swatinem/rust-cache@v2
-      - run: pnpm workaround-wasm-bindgen-test
       - run: pnpm i --frozen-lockfile
       - run: pnpm lint-check
       - run: pnpm build
