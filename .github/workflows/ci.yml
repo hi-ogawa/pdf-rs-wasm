@@ -15,5 +15,6 @@ jobs:
       - run: pnpm workaround-wasm-bindgen-test
       - run: pnpm i --frozen-lockfile
       - run: pnpm lint-check
+      - run: pnpm tsc
       - run: pnpm build
       - run: pnpm test

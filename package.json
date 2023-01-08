@@ -16,6 +16,7 @@
     "export-json-schema": "wasm-pack test --node -F export_json_schema | sed '0,/__JSON_SCHEMA_START__/d;/__JSON_SCHEMA_END__/Q' > pkg/types.schema.json",
     "json-schema-to-ts": "json2ts --no-additionalProperties pkg/types.schema.json > pkg/types.ts",
     "workaround-wasm-bindgen-test": "mkdir -p target && echo '{ \"module\": \"commonjs\" }' > target/package.json",
+    "tsc": "tsc -b",
     "test": "vitest run",
     "lint": "run-s lint:*",
     "lint-check": "run-s lint-check:*",
