@@ -481,9 +481,18 @@ dependencies = [
 [[package]]
 name = "globalcache"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "469dba5c15b33d67400508ff1f640e8906fa6c8d5ee80540203eb9029ce475df"
 dependencies = [
  "async-trait",
- "instant",
+]
+
+[[package]]
+name = "globalcache"
+version = "0.2.0"
+source = "git+https://github.com/s3bk/cachelib#58ff177528fe6fad7fb6fb274e010c1cc15b8d6d"
+dependencies = [
+ "async-trait",
 ]
 
 [[package]]
@@ -950,7 +959,7 @@ dependencies = [
  "datasize",
  "deflate 1.0.0",
  "fax",
- "globalcache",
+ "globalcache 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "inflate",
  "istring 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools",
@@ -958,7 +967,33 @@ dependencies = [
  "log",
  "md5",
  "once_cell",
- "pdf_derive",
+ "pdf_derive 0.1.22",
+ "sha2",
+ "snafu",
+ "stringprep",
+ "weezl",
+]
+
+[[package]]
+name = "pdf"
+version = "0.8.0"
+source = "git+https://github.com/pdf-rs/pdf#144b5b4fbf5e539917dc935e18474436d45b2dd2"
+dependencies = [
+ "aes",
+ "bitflags",
+ "block-modes",
+ "datasize",
+ "deflate 1.0.0",
+ "fax",
+ "globalcache 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "inflate",
+ "istring 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools",
+ "jpeg-decoder",
+ "log",
+ "md5",
+ "once_cell",
+ "pdf_derive 0.1.22 (git+https://github.com/pdf-rs/pdf)",
  "sha2",
  "snafu",
  "stringprep",
@@ -968,6 +1003,16 @@ dependencies = [
 [[package]]
 name = "pdf_derive"
 version = "0.1.22"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "pdf_derive"
+version = "0.1.22"
+source = "git+https://github.com/pdf-rs/pdf#144b5b4fbf5e539917dc935e18474436d45b2dd2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -989,7 +1034,7 @@ version = "0.1.0"
 dependencies = [
  "custom_debug_derive",
  "font",
- "globalcache",
+ "globalcache 0.2.0 (git+https://github.com/s3bk/cachelib)",
  "image 0.24.5",
  "instant",
  "istring 0.3.3 (git+https://github.com/s3bk/istring)",
@@ -1001,7 +1046,7 @@ dependencies = [
  "pathfinder_geometry",
  "pathfinder_renderer",
  "pathfinder_resources",
- "pdf",
+ "pdf 0.8.0 (git+https://github.com/pdf-rs/pdf)",
  "pdf_encoding",
  "serde_json",
 ]
@@ -1010,7 +1055,7 @@ dependencies = [
 name = "pdf_rs_wasm"
 version = "1.0.0-pre.0"
 dependencies = [
- "pdf",
+ "pdf 0.8.0",
  "pdf_render",
  "serde",
  "serde-wasm-bindgen",
