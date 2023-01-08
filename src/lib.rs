@@ -1,9 +1,10 @@
-use pdf::content::Op;
+use gloo_utils::format::JsValueSerdeExt;
 use pdf_render::{
     render_page,
     tracer::{TraceCache, Tracer},
 };
-use serde::{Serialize, Serializer};
+use schemars::JsonSchema;
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -11,7 +12,7 @@ pub struct PdfParser {}
 
 #[wasm_bindgen]
 impl PdfParser {
-    pub fn parse_operations(data: &[u8]) -> Result<JsValue, JsError> {
+    pub fn parse_operations(data: &[u8]) -> Result<JsPdfFileDts, JsError> {
         let file = pdf::file::File::from_data(data)?;
 
         let mut js_file = JsPdfFile::default();
@@ -21,70 +22,90 @@ impl PdfParser {
 
             if let Some(contents) = page?.contents.as_ref() {
                 let ops = contents.operations(&file)?;
-                js_page.operations = ops.iter().map(|op| JsPdfOp(op.clone())).collect();
+                js_page.operations = ops.iter().map(|op| format!("{:?}", op)).collect();
             }
 
             js_file.pages.push(js_page);
         }
 
-        Ok(serde_wasm_bindgen::to_value(&js_file)?)
+        Ok(JsValue::from_serde(&js_file)?.into())
     }
 
-    pub fn parse_trace(data: &[u8]) -> Result<JsValue, JsError> {
+    pub fn parse_trace(data: &[u8]) -> Result<JsPdfFileTraceDts, JsError> {
         let file = pdf::file::File::from_data(data)?;
         let mut cache = TraceCache::new_embedded();
-        let mut result: Vec<String> = vec![];
+        let mut result = JsPdfFileTrace::default();
         for page in file.pages() {
             let page = page?;
             let mut backend = Tracer::new(&mut cache);
-            render_page(&mut backend, &file, &page, Default::default()).unwrap();
+            render_page(&mut backend, &file, &page, Default::default())?;
             let items = backend.finish();
-            for item in items {
-                result.push(format!("{:?}", item));
-            }
+            result.pages.push(JsPdfPageTrace {
+                items: items.iter().map(|op| format!("{:?}", op)).collect(),
+            });
         }
-        Ok(serde_wasm_bindgen::to_value(&result)?)
+        Ok(JsValue::from_serde(&result)?.into())
     }
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, JsonSchema, Default)]
 struct JsPdfFile {
     pages: Vec<JsPdfPage>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, JsonSchema, Default)]
 struct JsPdfPage {
-    operations: Vec<JsPdfOp>,
+    operations: Vec<String>,
 }
-struct JsPdfOp(Op);
 
-impl Serialize for JsPdfOp {
-    fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let op = &self.0;
-        // TODO
-        // use serde::ser::{SerializeStruct, SerializeStructVariant};
-        // match op {
-        //     Op::TextDraw { text } => {
-        //         let mut ser = ser.serialize_struct_variant("Op", 0, "TextDraw", 1)?;
-        //         ser.serialize_field(
-        //             "text",
-        //             &text
-        //                 .to_string_lossy()
-        //                 .map_or("__INVALID__".to_string(), |v| v.clone()),
-        //         )?;
-        //         ser.end()
-        //     }
-        //     _ => {
-        //         let mut ser = ser.serialize_struct("__OTHER__", 1)?;
-        //         ser.serialize_field("__DEBUG__", &format!("{:?}", op))?;
-        //         ser.end()
-        //     }
-        // }
-        match op {
-            _ => ser.serialize_str(&format!("{:?}", op)),
+#[derive(Serialize, JsonSchema, Default)]
+struct JsPdfFileTrace {
+    pages: Vec<JsPdfPageTrace>,
+}
+
+#[derive(Serialize, JsonSchema, Default)]
+struct JsPdfPageTrace {
+    items: Vec<String>,
+}
+
+//
+// export typing via json-schema
+//
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "JsPdfFile")]
+    pub type JsPdfFileDts;
+
+    #[wasm_bindgen(typescript_type = "JsPdfFileTrace")]
+    pub type JsPdfFileTraceDts;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const TYPESCRIPT_EXTRA: &'static str = r#"
+/* __TYPESCRIPT_EXTRA__START__ */
+import { JsPdfFile, JsPdfFileTrace } from "./types";
+export { JsPdfFile, JsPdfFileTrace }
+/* __TYPESCRIPT_EXTRA__END__ */
+"#;
+
+#[cfg(test)]
+pub mod tests {
+    use schemars::{schema_for, JsonSchema};
+    use wasm_bindgen_test::*;
+    use web_sys::console;
+
+    #[derive(JsonSchema)]
+    struct __RootSchema(crate::JsPdfFile, crate::JsPdfFileTrace);
+
+    #[wasm_bindgen_test]
+    fn export_json_schema() {
+        let schema = schema_for!(__RootSchema);
+        let schema_str = serde_json::to_string_pretty(&schema).unwrap();
+        if cfg!(feature = "export_json_schema") {
+            console::log_1(&"__JSON_SCHEMA_START__".into());
+            console::log_1(&schema_str.into());
+            console::log_1(&"__JSON_SCHEMA_END__".into());
         }
     }
 }
