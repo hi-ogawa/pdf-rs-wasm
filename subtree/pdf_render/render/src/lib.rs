@@ -27,6 +27,7 @@ mod graphicsstate;
 mod image;
 mod renderstate;
 mod scene;
+pub mod serde_utils;
 mod textstate;
 pub mod tracer;
 
@@ -38,10 +39,14 @@ pub use fontentry::{FontEntry, TextEncoding};
 pub use scene::SceneBackend;
 
 use itertools::Itertools;
-use pathfinder_geometry::{rect::RectF, transform2d::Transform2F, vector::Vector2F};
+pub use pathfinder_geometry::rect::RectF;
+use pathfinder_geometry::{transform2d::Transform2F, vector::Vector2F};
 use pdf::error::PdfError;
 use pdf::object::*;
 use renderstate::RenderState;
+use schemars::JsonSchema;
+use serde::Serialize;
+use serde_with::serde_as;
 use std::sync::Arc;
 const SCALE: f32 = 25.4 / 72.;
 
@@ -134,10 +139,16 @@ pub fn render_pattern(
     Ok(())
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[serde_as]
+#[derive(Serialize, JsonSchema, Copy, Clone, PartialEq, Debug)]
+#[serde(tag = "type", content = "data")]
 pub enum Fill {
     Solid(f32, f32, f32),
-    Pattern(Ref<Pattern>),
+    Pattern(
+        #[schemars(with = "crate::serde_utils::SerializeAsDebug")]
+        #[serde_as(as = "crate::serde_utils::SerializeAsDebug")]
+        Ref<Pattern>,
+    ),
 }
 impl Fill {
     pub fn black() -> Self {
@@ -145,16 +156,23 @@ impl Fill {
     }
 }
 
-#[derive(Debug)]
+#[serde_as]
+#[derive(Serialize, JsonSchema, Debug)]
 pub struct TextSpan {
     // A rect with the origin at the baseline, a height of 1em and width that corresponds to the advance width.
+    #[schemars(with = "serde_utils::LocalRectF")]
+    #[serde_as(as = "serde_utils::AsLocalRectF")]
     pub rect: RectF,
 
     // width in textspace units (before applying transform)
     pub width: f32,
     // Bounding box of the rendered outline
+    #[schemars(with = "serde_utils::LocalOptionRectF")]
+    #[serde_as(as = "Option<serde_utils::AsLocalRectF>")]
     pub bbox: Option<RectF>,
     pub font_size: f32,
+    #[schemars(with = "serde_utils::LocalOptionArcFontEntry")]
+    #[serde_as(as = "Option<serde_utils::AsLocalArcFontEntry>")]
     #[debug(skip)]
     pub font: Option<Arc<FontEntry>>,
     pub text: String,
@@ -163,6 +181,8 @@ pub struct TextSpan {
     pub alpha: f32,
 
     // apply this transform to a text draw in at the origin with the given width and font-size
+    #[schemars(with = "crate::serde_utils::SerializeAsDebug")]
+    #[serde_as(as = "crate::serde_utils::SerializeAsDebug")]
     pub transform: Transform2F,
 }
 impl TextSpan {
@@ -190,7 +210,7 @@ pub struct Part<'a> {
     pub width: f32,
     pub offset: usize,
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(serde::Serialize, schemars::JsonSchema, Debug, Clone, Copy)]
 pub struct TextChar {
     pub offset: usize,
     pub pos: f32,
