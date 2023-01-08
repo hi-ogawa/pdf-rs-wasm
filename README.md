@@ -15,6 +15,8 @@ pnpm test
 - https://www.npmjs.com/package/@hiogawa/pdf-rs-wasm
 - https://www.npmjs.com/package/@hiogawa/pdf-rs-wasm-cli
 
+## example
+
 ```sh
 volta install @hiogawa/pdf-rs-wasm-cli
 pdf-rs-wasm-cli subtree/pdf/files/example.pdf
