@@ -10,7 +10,7 @@ beforeAll(async () => {
 
 describe("PdfParser", () => {
   it("parse_operations", async () => {
-    const data = await fs.promises.readFile("thirdparty/pdf/files/example.pdf");
+    const data = await fs.promises.readFile("subtree/pdf/files/example.pdf");
     const result = PdfParser.parse_operations(data);
     expect(result).toMatchInlineSnapshot(`
       {
@@ -37,7 +37,7 @@ describe("PdfParser", () => {
   });
 
   it("parse_trace", async () => {
-    const data = await fs.promises.readFile("thirdparty/pdf/files/example.pdf");
+    const data = await fs.promises.readFile("subtree/pdf/files/example.pdf");
     const result = PdfParser.parse_trace(data);
     expect(result).toMatchInlineSnapshot(`
       [
