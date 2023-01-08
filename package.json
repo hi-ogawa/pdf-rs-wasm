@@ -1,8 +1,9 @@
 {
   "scripts": {
-    "build": "pnpm -C packages/wasm build",
+    "build-wasm": "pnpm -C packages/wasm build",
+    "build-cli": "pnpm -C packages/cli build",
     "test": "pnpm -r test",
-    "tsc": "tsc -b packages/wasm",
+    "tsc": "tsc -b packages/wasm packages/cli",
     "lint": "run-s lint:*",
     "lint-check": "run-s lint-check:*",
     "lint:prettier": "prettier --write --cache .",
@@ -12,9 +13,11 @@
   },
   "devDependencies": {
     "@tsconfig/strictest": "^1.0.2",
+    "esbuild": "^0.16.15",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.8.1",
-    "typescript": "^4.9.4"
+    "typescript": "^4.9.4",
+    "vitest": "^0.26.3"
   },
   "volta": {
     "node": "16.19.0"

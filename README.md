@@ -5,6 +5,7 @@ the goal is to be a robust replacement of [pdf2json](https://github.com/modesty/
 
 ```sh
 pnpm i
-pnpm build
+pnpm build-wasm
+pnpm build-cli
 pnpm test
 ```

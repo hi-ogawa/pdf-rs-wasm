@@ -1,3 +1,26 @@
 {
-  "name": "@hiogawa/pdf-rs-wasm-cli"
+  "name": "@hiogawa/pdf-rs-wasm-cli",
+  "version": "1.0.0-pre.0",
+  "type": "module",
+  "bin": "./build/index.js",
+  "files": [
+    "build/*"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hi-ogawa/pdf-rs-wasm",
+    "directory": "packages/cli"
+  },
+  "scripts": {
+    "build": "esbuild ./src/index.ts --outdir=./build --format=esm",
+    "test": "vitest run",
+    "release": "pnpm publish --access public"
+  },
+  "dependencies": {
+    "@hiogawa/pdf-rs-wasm": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^16"
+  }
 }

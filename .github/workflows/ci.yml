@@ -14,6 +14,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: pnpm i --frozen-lockfile
       - run: pnpm lint-check
-      - run: pnpm build
+      - run: pnpm build-wasm
+      - run: pnpm build-cli
       - run: pnpm tsc
       - run: pnpm test

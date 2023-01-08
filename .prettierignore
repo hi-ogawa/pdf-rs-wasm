@@ -1,4 +1,5 @@
 node_modules
+build
 target
 pkg
 pnpm-lock.yaml
