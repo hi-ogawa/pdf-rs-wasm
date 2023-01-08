@@ -1,10 +1,9 @@
-use pathfinder_view::{show, Config};
-use pathfinder_resources::embedded::EmbeddedResourceLoader;
 use pathfinder_color::ColorF;
+use pathfinder_resources::embedded::EmbeddedResourceLoader;
+use pathfinder_view::{show, Config};
 
 use pdf::file::File as PdfFile;
 use pdf_view::PdfView;
-
 
 fn main() {
     env_logger::init();

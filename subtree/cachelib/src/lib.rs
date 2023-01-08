@@ -1,8 +1,9 @@
+use async_trait::async_trait;
 /**
 Goals:
  - limit global memory use
  - minimize computation time
- 
+
 Track globally:
   - average value
   - average age
@@ -22,23 +23,21 @@ Don't add:
 Don't evict:
  - newer values
 **/
+use std::sync::Arc;
 
-use std::sync::{Arc};
-use async_trait::async_trait;
-
-#[cfg(feature="sync")]
+#[cfg(feature = "sync")]
 pub mod sync;
 
-#[cfg(feature="async")]
+#[cfg(feature = "async")]
 pub mod r#async;
 
-#[cfg(feature="global")]
+#[cfg(feature = "global")]
 pub mod global;
 
-#[cfg(not(feature="global"))]
+#[cfg(not(feature = "global"))]
 pub mod global {
-    use std::sync::Weak;
     use super::CacheControl;
+    use std::sync::Weak;
 
     pub struct GlobalCache;
     impl GlobalCache {
@@ -80,7 +79,7 @@ impl<T: ValueSize> ValueSize for Option<T> {
     fn size(&self) -> usize {
         match *self {
             None => 0,
-            Some(ref val) => val.size()
+            Some(ref val) => val.size(),
         }
     }
 }

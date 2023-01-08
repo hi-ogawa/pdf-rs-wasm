@@ -1,12 +1,15 @@
-#[macro_use] extern crate log;
-#[macro_use] extern crate pdf;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate pdf;
 
 macro_rules! assert_eq {
     ($a:expr, $b:expr) => {
         if $a != $b {
-            return Err(pdf::error::PdfError::Other { msg: format!("{} ({}) != {} ({})", stringify!($a), $a, stringify!($b), $b)});
+            return Err(pdf::error::PdfError::Other {
+                msg: format!("{} ({}) != {} ({})", stringify!($a), $a, stringify!($b), $b),
+            });
         }
-        
     };
 }
 
@@ -16,35 +19,31 @@ macro_rules! unimplemented {
     };
 }
 
+mod backend;
 mod cache;
+mod font;
 mod fontentry;
 mod graphicsstate;
-mod renderstate;
-mod textstate;
-mod backend;
-pub mod tracer;
 mod image;
+mod renderstate;
 mod scene;
-mod font;
+mod textstate;
+pub mod tracer;
 
-pub use cache::{Cache};
-pub use fontentry::{FontEntry, TextEncoding};
-pub use backend::{DrawMode, Backend};
-pub use scene::SceneBackend;
 pub use crate::image::{load_image, ImageData};
+pub use backend::{Backend, DrawMode};
+pub use cache::Cache;
 use custom_debug_derive::Debug;
+pub use fontentry::{FontEntry, TextEncoding};
+pub use scene::SceneBackend;
 
-use pdf::object::*;
+use itertools::Itertools;
+use pathfinder_geometry::{rect::RectF, transform2d::Transform2F, vector::Vector2F};
 use pdf::error::PdfError;
-use pathfinder_geometry::{
-    vector::{Vector2F},
-    rect::RectF, transform2d::Transform2F,
-};
+use pdf::object::*;
 use renderstate::RenderState;
 use std::sync::Arc;
-use itertools::Itertools;
 const SCALE: f32 = 25.4 / 72.;
-
 
 #[derive(Copy, Clone, Default)]
 pub struct BBox(Option<RectF>);
@@ -55,7 +54,7 @@ impl BBox {
     pub fn add(&mut self, r2: RectF) {
         self.0 = Some(match self.0 {
             Some(r1) => r1.union_rect(r2),
-            None => r2
+            None => r2,
         });
     }
     pub fn add_bbox(&mut self, bb: Self) {
@@ -73,12 +72,21 @@ impl From<RectF> for BBox {
     }
 }
 
-
 pub fn page_bounds(page: &Page) -> RectF {
-    let Rect { left, right, top, bottom } = page.media_box().expect("no media box");
+    let Rect {
+        left,
+        right,
+        top,
+        bottom,
+    } = page.media_box().expect("no media box");
     RectF::from_points(Vector2F::new(left, bottom), Vector2F::new(right, top)) * SCALE
 }
-pub fn render_page(backend: &mut impl Backend, resolve: &impl Resolve, page: &Page, transform: Transform2F) -> Result<Transform2F, PdfError> {
+pub fn render_page(
+    backend: &mut impl Backend,
+    resolve: &impl Resolve,
+    page: &Page,
+    transform: Transform2F,
+) -> Result<Transform2F, PdfError> {
     let bounds = page_bounds(page);
     let rotate = Transform2F::from_rotation(page.rotate as f32 * std::f32::consts::PI / 180.);
     let br = rotate * RectF::new(Vector2F::zero(), bounds.size());
@@ -88,12 +96,12 @@ pub fn render_page(backend: &mut impl Backend, resolve: &impl Resolve, page: &Pa
     ));
     let view_box = transform * translate * br;
     backend.set_view_box(view_box);
-    
+
     let root_transformation = transform
         * translate
         * rotate
         * Transform2F::row_major(SCALE, 0.0, -bounds.min_x(), 0.0, -SCALE, bounds.max_y());
-    
+
     let resources = t!(page.resources());
 
     let contents = try_opt!(page.contents.as_ref());
@@ -106,11 +114,16 @@ pub fn render_page(backend: &mut impl Backend, resolve: &impl Resolve, page: &Pa
 
     Ok(root_transformation)
 }
-pub fn render_pattern(backend: &mut impl Backend, pattern: &Pattern, resolve: &impl Resolve) -> Result<(), PdfError> {
+pub fn render_pattern(
+    backend: &mut impl Backend,
+    pattern: &Pattern,
+    resolve: &impl Resolve,
+) -> Result<(), PdfError> {
     match pattern {
         Pattern::Stream(ref dict, ref ops) => {
             let resources = resolve.get(dict.resources)?;
-            let mut renderstate = RenderState::new(backend, resolve, &*resources, Transform2F::default());
+            let mut renderstate =
+                RenderState::new(backend, resolve, &*resources, Transform2F::default());
             for (i, op) in ops.iter().enumerate() {
                 debug!("op {}: {:?}", i, op);
                 renderstate.draw_op(op)?;
@@ -120,7 +133,6 @@ pub fn render_pattern(backend: &mut impl Backend, pattern: &Pattern, resolve: &i
     }
     Ok(())
 }
-
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Fill {
@@ -154,15 +166,21 @@ pub struct TextSpan {
     pub transform: Transform2F,
 }
 impl TextSpan {
-    pub fn parts(&self) -> impl Iterator<Item=Part> + '_ {
-        self.chars.iter().cloned()
-            .chain(std::iter::once(TextChar { offset: self.text.len(), pos: self.width, width: 0.0 }))
+    pub fn parts(&self) -> impl Iterator<Item = Part> + '_ {
+        self.chars
+            .iter()
+            .cloned()
+            .chain(std::iter::once(TextChar {
+                offset: self.text.len(),
+                pos: self.width,
+                width: 0.0,
+            }))
             .tuple_windows()
             .map(|(a, b)| Part {
                 text: &self.text[a.offset..b.offset],
                 pos: a.pos,
                 width: a.width,
-                offset: a.offset
+                offset: a.offset,
             })
     }
 }

@@ -1,6 +1,6 @@
-use crate::object::*;
 use crate::content::*;
 use crate::error::Result;
+use crate::object::*;
 
 #[derive(Default)]
 pub struct PageBuilder {
@@ -15,7 +15,7 @@ impl PageBuilder {
     pub fn from_content(content: Content) -> PageBuilder {
         PageBuilder {
             content: Some(content),
-            .. PageBuilder::default()
+            ..PageBuilder::default()
         }
     }
     pub fn from_page(page: &Page) -> Result<PageBuilder> {
@@ -42,30 +42,34 @@ impl PageBuilder {
 }
 
 pub struct CatalogBuilder {
-    pages: Vec<PageBuilder>
+    pages: Vec<PageBuilder>,
 }
 impl CatalogBuilder {
     pub fn from_pages(pages: Vec<PageBuilder>) -> CatalogBuilder {
-        CatalogBuilder {
-            pages
-        }
+        CatalogBuilder { pages }
     }
     pub fn build(self, update: &mut impl Updater) -> Result<Catalog> {
-        let kids_promise: Vec<_> = self.pages.iter()
+        let kids_promise: Vec<_> = self
+            .pages
+            .iter()
             .map(|_page| update.promise::<PagesNode>())
             .collect();
-        let kids: Vec<_> = kids_promise.iter()
+        let kids: Vec<_> = kids_promise
+            .iter()
             .map(|p| Ref::new(p.get_inner()))
             .collect();
 
-        let tree = PagesRc::create(PageTree {
-            parent: None,
-            count: kids.len() as _,
-            kids,
-            resources: None,
-            media_box: None,
-            crop_box: None
-        }, update)?;
+        let tree = PagesRc::create(
+            PageTree {
+                parent: None,
+                count: kids.len() as _,
+                kids,
+                resources: None,
+                media_box: None,
+                crop_box: None,
+            },
+            update,
+        )?;
 
         for (page, promise) in self.pages.into_iter().zip(kids_promise) {
             let page = Page {

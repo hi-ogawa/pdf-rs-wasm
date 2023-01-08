@@ -1,21 +1,17 @@
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
+use pdf::error::Result;
+use pdf::font::Font as PdfFont;
 use pdf::object::*;
 use pdf::primitive::Name;
-use pdf::font::{Font as PdfFont};
-use pdf::error::{Result};
 
-use pathfinder_geometry::{
-    vector::{Vector2I},
-};
-use pathfinder_content::{
-    pattern::{Image},
-};
+use pathfinder_content::pattern::Image;
+use pathfinder_geometry::vector::Vector2I;
 
-use super::{fontentry::FontEntry};
-use super::image::load_image;
 use super::font::{load_font, StandardCache};
+use super::fontentry::FontEntry;
+use super::image::load_image;
 use globalcache::{sync::SyncCache, ValueSize};
 
 #[derive(Clone)]
@@ -55,9 +51,13 @@ impl Cache {
             missing_fonts: Vec::new(),
         }
     }
-    pub fn get_font(&mut self, pdf_font: &MaybeRef<PdfFont>, resolve: &impl Resolve) -> Result<Option<Arc<FontEntry>>, > {
+    pub fn get_font(
+        &mut self,
+        pdf_font: &MaybeRef<PdfFont>,
+        resolve: &impl Resolve,
+    ) -> Result<Option<Arc<FontEntry>>> {
         let mut error = None;
-        let val = self.fonts.get(&**pdf_font as *const PdfFont as usize, || 
+        let val = self.fonts.get(&**pdf_font as *const PdfFont as usize, || {
             match load_font(pdf_font, resolve, &mut self.std) {
                 Ok(Some(f)) => Some(Arc::new(f)),
                 Ok(None) => {
@@ -65,25 +65,34 @@ impl Cache {
                         self.missing_fonts.push(name.clone());
                     }
                     None
-                },
+                }
                 Err(e) => {
                     error = Some(e);
                     None
                 }
             }
-        );
+        });
         match error {
             None => Ok(val),
-            Some(e) => Err(e)
+            Some(e) => Err(e),
         }
     }
 
-    pub fn get_image(&mut self, xobject_ref: Ref<XObject>, im: &ImageXObject, resources: &Resources, resolve: &impl Resolve) -> ImageResult {
-        self.images.get(xobject_ref, ||
-            ImageResult(Arc::new(load_image(im, resources, resolve).map(|image|
-                Image::new(Vector2I::new(im.width as i32, im.height as i32), Arc::new(image.data))
-            )))
-        )
+    pub fn get_image(
+        &mut self,
+        xobject_ref: Ref<XObject>,
+        im: &ImageXObject,
+        resources: &Resources,
+        resolve: &impl Resolve,
+    ) -> ImageResult {
+        self.images.get(xobject_ref, || {
+            ImageResult(Arc::new(load_image(im, resources, resolve).map(|image| {
+                Image::new(
+                    Vector2I::new(im.width as i32, im.height as i32),
+                    Arc::new(image.data),
+                )
+            })))
+        })
     }
 }
 impl Drop for Cache {

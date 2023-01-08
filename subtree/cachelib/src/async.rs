@@ -1,12 +1,12 @@
-use std::collections::hash_map::{HashMap, Entry};
+use super::{global::GlobalCache, CacheControl, ValueSize};
+use async_trait::async_trait;
+use std::collections::hash_map::{Entry, HashMap};
+use std::future::{ready, Future};
 use std::hash::Hash;
 use std::mem::replace;
 use std::sync::Arc;
-use tokio::sync::{Notify, Mutex};
-use tokio::time::{Instant, Duration};
-use super::{ValueSize, CacheControl, global::GlobalCache};
-use std::future::{Future, ready};
-use async_trait::async_trait;
+use tokio::sync::{Mutex, Notify};
+use tokio::time::{Duration, Instant};
 
 struct Computed<V> {
     value: V,
@@ -22,7 +22,7 @@ impl<V> Value<V> {
     fn unwrap(self) -> V {
         match self {
             Value::Computed(v) => v.value,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -34,8 +34,10 @@ struct CacheInner<K, V> {
     entries: HashMap<K, Value<V>>,
 }
 
-impl<K, V> AsyncCache<K, V> 
-    where K: Clone + Hash + Eq + Send + 'static, V: Clone + ValueSize + Send + 'static,
+impl<K, V> AsyncCache<K, V>
+where
+    K: Clone + Hash + Eq + Send + 'static,
+    V: Clone + ValueSize + Send + 'static,
 {
     pub fn new() -> Arc<Self> {
         Self::with_name(None)
@@ -45,13 +47,14 @@ impl<K, V> AsyncCache<K, V>
             name: name.into(),
             inner: Mutex::new(CacheInner {
                 entries: HashMap::new(),
-            })
+            }),
         });
         GlobalCache::register(Arc::downgrade(&cache));
         cache
     }
-    pub fn entries(self) -> impl Iterator<Item=(K, V)> {
-        self.inner.into_inner()
+    pub fn entries(self) -> impl Iterator<Item = (K, V)> {
+        self.inner
+            .into_inner()
             .entries
             .into_iter()
             .map(|(k, v)| (k, v.unwrap()))
@@ -61,8 +64,8 @@ impl<K, V> AsyncCache<K, V>
     }
     pub async fn get_async<F, C>(&self, key: K, compute: C) -> V
     where
-        F: Future<Output=V>,
-        C: FnOnce() -> F
+        F: Future<Output = V>,
+        C: FnOnce() -> F,
     {
         let mut guard = self.inner.lock().await;
         let key2 = key.clone();
@@ -70,14 +73,14 @@ impl<K, V> AsyncCache<K, V>
             Entry::Occupied(mut e) => match e.get_mut() {
                 &mut Value::Computed(ref mut v) => {
                     v.last_used = Instant::now();
-                    return v.value.clone()
+                    return v.value.clone();
                 }
                 &mut Value::InProcess(ref condvar) => {
                     let condvar = condvar.clone();
                     drop(guard);
                     return self.poll(key2, condvar).await;
                 }
-            }
+            },
             Entry::Vacant(e) => {
                 let key = e.key().clone();
                 let notify = Arc::new(Notify::new());
@@ -96,13 +99,13 @@ impl<K, V> AsyncCache<K, V>
                     value,
                     size,
                     time,
-                    last_used: start
+                    last_used: start,
                 };
                 let slot = guard.entries.get_mut(&key).unwrap();
                 let slot = replace(slot, Value::Computed(c));
                 match slot {
                     Value::InProcess(ref notify) => notify.notify_waiters(),
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
                 return value2;
             }
@@ -123,7 +126,9 @@ impl<K, V> AsyncCache<K, V>
 
 #[async_trait]
 impl<K, V> CacheControl for AsyncCache<K, V>
-    where K: Eq + Hash + Send + 'static, V: Clone + ValueSize + Send + 'static
+where
+    K: Eq + Hash + Send + 'static,
+    V: Clone + ValueSize + Send + 'static,
 {
     fn name(&self) -> Option<&str> {
         self.name.as_deref()
@@ -139,21 +144,19 @@ impl<K, V> CacheInner<K, V> {
         let now = Instant::now() + Duration::from_secs_f64(time_scale);
 
         let mut time_sum = 0.0;
-        self.entries.retain(|_, value| {
-            match value {
-                Value::Computed(ref entry) => {
-                    let elapsed = now.duration_since(entry.last_used);
-                    let value = entry.time / (entry.size as f64 * elapsed.as_secs_f64());
-                    if value > threshold {
-                        time_sum += entry.time;
-                        size_sum += entry.size;
-                        true
-                    } else {
-                        false
-                    }
+        self.entries.retain(|_, value| match value {
+            Value::Computed(ref entry) => {
+                let elapsed = now.duration_since(entry.last_used);
+                let value = entry.time / (entry.size as f64 * elapsed.as_secs_f64());
+                if value > threshold {
+                    time_sum += entry.time;
+                    size_sum += entry.size;
+                    true
+                } else {
+                    false
                 }
-                Value::InProcess(_) => true
             }
+            Value::InProcess(_) => true,
         });
         (size_sum, time_sum)
     }

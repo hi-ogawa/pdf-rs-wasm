@@ -1,16 +1,14 @@
+use std::borrow::Cow;
+use std::ops::{Deref, Range, RangeFrom};
 /// Lexing an input file, in the sense of breaking it up into substrings based on delimiters and
 /// whitespace.
-
 use std::str::FromStr;
-use std::ops::{Range, Deref, RangeFrom};
-use std::borrow::Cow;
 
 use crate::error::*;
 use crate::primitive::Name;
 
 mod str;
-pub use self::str::{StringLexer, HexStringLexer};
-
+pub use self::str::{HexStringLexer, StringLexer};
 
 /// `Lexer` has functionality to jump around and traverse the PDF lexemes of a string in any direction.
 #[derive(Copy, Clone)]
@@ -24,18 +22,18 @@ pub struct Lexer<'a> {
 // find the position where condition(data[pos-1]) == false and condition(data[pos]) == true
 #[inline]
 fn boundary_rev(data: &[u8], pos: usize, condition: impl Fn(u8) -> bool) -> usize {
-    match data[.. pos].iter().rposition(|&b| !condition(b)) {
+    match data[..pos].iter().rposition(|&b| !condition(b)) {
         Some(start) => start + 1,
-        None => 0
+        None => 0,
     }
 }
 
 // find the position where condition(data[pos-1]) == true and condition(data[pos]) == false
 #[inline]
 fn boundary(data: &[u8], pos: usize, condition: impl Fn(u8) -> bool) -> usize {
-    match data[pos ..].iter().position(|&b| !condition(b)) {
+    match data[pos..].iter().position(|&b| !condition(b)) {
         Some(start) => pos + start,
-        None => data.len()
+        None => data.len(),
     }
 }
 
@@ -52,14 +50,14 @@ impl<'a> Lexer<'a> {
         Lexer {
             pos: 0,
             buf,
-            file_offset: 0
+            file_offset: 0,
         }
     }
     pub fn with_offset(buf: &'a [u8], file_offset: usize) -> Lexer<'a> {
         Lexer {
             pos: 0,
             buf,
-            file_offset
+            file_offset,
         }
     }
 
@@ -74,10 +72,10 @@ impl<'a> Lexer<'a> {
     /// consume the whitespace sequence following the stream start
     pub fn next_stream(&mut self) -> Result<()> {
         let pos = self.skip_whitespace(self.pos)?;
-        if !self.buf[pos ..].starts_with(b"stream") {
+        if !self.buf[pos..].starts_with(b"stream") {
             // bail!("next token isn't 'stream'");
         }
-        
+
         let &b0 = self.buf.get(pos + 6).ok_or(PdfError::EOF)?;
         if b0 == b'\n' {
             self.pos = pos + 7;
@@ -96,13 +94,13 @@ impl<'a> Lexer<'a> {
     /// Gives previous lexeme. Lexer moves to the first byte of this lexeme. (needs to be tested)
     pub fn back(&mut self) -> Result<Substr<'a>> {
         //println!("back: {:?}", String::from_utf8_lossy(&self.buf[self.pos.saturating_sub(20) .. self.pos]));
-        
+
         // first reverse until we find non-whitespace
         let end_pos = boundary_rev(self.buf, self.pos, is_whitespace);
         let start_pos = boundary_rev(self.buf, end_pos, not(is_whitespace));
         self.pos = start_pos;
-        
-        Ok(self.new_substr(start_pos .. end_pos))
+
+        Ok(self.new_substr(start_pos..end_pos))
     }
 
     /// Look at the next lexeme. Will return empty substr if the next character is EOF.
@@ -112,7 +110,6 @@ impl<'a> Lexer<'a> {
             Err(PdfError::EOF) => Ok(self.new_substr(self.pos..self.pos)),
             Err(e) => Err(e),
         }
-
     }
 
     /// Returns `Ok` if the next lexeme matches `expected` - else `Err`.
@@ -124,7 +121,7 @@ impl<'a> Lexer<'a> {
             Err(PdfError::UnexpectedLexeme {
                 pos: self.pos,
                 lexeme: word.to_string(),
-                expected
+                expected,
             })
         }
     }
@@ -153,13 +150,13 @@ impl<'a> Lexer<'a> {
         while self.buf.get(pos) == Some(&b'%') {
             pos += 1;
             if let Some(off) = self.buf[pos..].iter().position(|&b| b == b'\n') {
-                pos += off+1;
+                pos += off + 1;
             }
-            
+
             // Move away from eventual whitespace
             pos = self.skip_whitespace(pos)?;
         }
-        
+
         let start_pos = pos;
 
         // If first character is delimiter, this lexeme only contains that character.
@@ -177,7 +174,7 @@ impl<'a> Lexer<'a> {
                 return Ok((self.new_substr(start_pos..pos), pos));
             }
 
-            if let Some(slice) = self.buf.get(pos..=pos+1) {
+            if let Some(slice) = self.buf.get(pos..=pos + 1) {
                 if slice == b"<<" || slice == b">>" {
                     pos = self.advance_pos(pos)?;
                 }
@@ -213,7 +210,9 @@ impl<'a> Lexer<'a> {
 
     #[inline]
     pub fn next_as<T>(&mut self) -> Result<T>
-        where T: FromStr, T::Err: std::error::Error + Send + Sync + 'static
+    where
+        T: FromStr,
+        T::Err: std::error::Error + Send + Sync + 'static,
     {
         self.next().and_then(|word| word.to::<T>())
     }
@@ -265,15 +264,13 @@ impl<'a> Lexer<'a> {
 
     /// Moves pos to start of next line. Returns the skipped-over substring.
     #[allow(dead_code)]
-    pub fn seek_newline(&mut self) -> Substr{
+    pub fn seek_newline(&mut self) -> Substr {
         let start = self.pos;
-        while self.buf[self.pos] != b'\n' 
-            && self.incr_pos() { }
+        while self.buf[self.pos] != b'\n' && self.incr_pos() {}
         self.incr_pos();
 
         self.new_substr(start..self.pos)
     }
-
 
     // TODO: seek_substr and seek_substr_back should use next() or back()?
     /// Moves pos to after the found `substr`. Returns Substr with traversed text if `substr` is found.
@@ -285,7 +282,7 @@ impl<'a> Lexer<'a> {
         let mut matched = 0;
         loop {
             if self.pos >= self.buf.len() {
-                return None
+                return None;
             }
             if self.buf[self.pos] == substr[matched] {
                 matched += 1;
@@ -306,12 +303,17 @@ impl<'a> Lexer<'a> {
     /// Substr if found.
     pub fn seek_substr_back(&mut self, substr: &[u8]) -> Result<Substr<'a>> {
         let end = self.pos;
-        match self.buf[.. end].windows(substr.len()).rposition(|w| w == substr) {
+        match self.buf[..end]
+            .windows(substr.len())
+            .rposition(|w| w == substr)
+        {
             Some(start) => {
                 self.pos = start + substr.len();
-                Ok(self.new_substr(self.pos .. end))
+                Ok(self.new_substr(self.pos..end))
             }
-            None => Err(PdfError::NotFound {word: String::from_utf8_lossy(substr).into() })
+            None => Err(PdfError::NotFound {
+                word: String::from_utf8_lossy(substr).into(),
+            }),
         }
     }
 
@@ -338,7 +340,9 @@ impl<'a> Lexer<'a> {
 
     /// for debugging
     pub fn ctx(&self) -> Cow<str> {
-        String::from_utf8_lossy(&self.buf[self.pos.saturating_sub(40)..self.buf.len().min(self.pos+40)])
+        String::from_utf8_lossy(
+            &self.buf[self.pos.saturating_sub(40)..self.buf.len().min(self.pos + 40)],
+        )
     }
 
     #[inline]
@@ -352,17 +356,20 @@ impl<'a> Lexer<'a> {
     }
     #[inline]
     fn is_whitespace(&self, pos: usize) -> bool {
-        self.buf.get(pos).map(|&b| is_whitespace(b)).unwrap_or(false)
+        self.buf
+            .get(pos)
+            .map(|&b| is_whitespace(b))
+            .unwrap_or(false)
     }
 
     #[inline]
     fn is_delimiter(&self, pos: usize) -> bool {
-        self.buf.get(pos).map(|b| b"()<>[]{}/%".contains(b)).unwrap_or(false)
+        self.buf
+            .get(pos)
+            .map(|b| b"()<>[]{}/%".contains(b))
+            .unwrap_or(false)
     }
-
 }
-
-
 
 /// A slice from some original string - a lexeme.
 #[derive(Copy, Clone, Debug)]
@@ -372,7 +379,10 @@ pub struct Substr<'a> {
 }
 impl<'a> Substr<'a> {
     pub fn new<T: AsRef<[u8]> + ?Sized>(data: &'a T, file_offset: usize) -> Self {
-        Substr { slice: data.as_ref(), file_offset }
+        Substr {
+            slice: data.as_ref(),
+            file_offset,
+        }
     }
     // to: &S -> U. Possibly expensive conversion.
     // as: &S -> &U. Cheap borrow conversion
@@ -389,9 +399,13 @@ impl<'a> Substr<'a> {
         self.slice.to_vec()
     }
     pub fn to<T>(&self) -> Result<T>
-        where T: FromStr, T::Err: std::error::Error + Send + Sync + 'static
+    where
+        T: FromStr,
+        T::Err: std::error::Error + Send + Sync + 'static,
     {
-        std::str::from_utf8(self.slice)?.parse::<T>().map_err(|e| PdfError::Parse { source: e.into() })
+        std::str::from_utf8(self.slice)?
+            .parse::<T>()
+            .map_err(|e| PdfError::Parse { source: e.into() })
     }
     pub fn is_integer(&self) -> bool {
         if self.slice.len() == 0 {
@@ -424,7 +438,7 @@ impl<'a> Substr<'a> {
             if !is_int(&slice[..i]) {
                 return None;
             }
-            slice = &slice[i+1..];
+            slice = &slice[i + 1..];
         }
         if let Some(len) = slice.iter().position(|&b| !matches!(b, b'0'..=b'9')) {
             if len == 0 {
@@ -433,7 +447,7 @@ impl<'a> Substr<'a> {
             let end = self.slice.len() - slice.len() + len;
             Some(Substr {
                 file_offset: self.file_offset,
-                slice: &self.slice[..end]
+                slice: &self.slice[..end],
             })
         } else {
             Some(*self)
@@ -459,7 +473,7 @@ impl<'a> Substr<'a> {
     }
 
     pub fn file_range(&self) -> Range<usize> {
-        self.file_offset .. self.file_offset + self.slice.len()
+        self.file_offset..self.file_offset + self.slice.len()
     }
 }
 

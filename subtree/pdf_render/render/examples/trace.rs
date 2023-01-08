@@ -1,13 +1,13 @@
 use pdf::file::File;
-use pdf_render::tracer::{TraceCache, Tracer};
 use pdf_render::render_page;
+use pdf_render::tracer::{TraceCache, Tracer};
 
 fn main() {
     env_logger::init();
     let arg = std::env::args().nth(1).unwrap();
 
     let file = File::<Vec<u8>>::open(&arg).unwrap();
-    
+
     let mut cache = TraceCache::new();
     for page in file.pages() {
         let p = page.unwrap();

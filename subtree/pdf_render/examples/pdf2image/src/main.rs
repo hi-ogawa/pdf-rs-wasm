@@ -1,8 +1,8 @@
 use argh::FromArgs;
-use pdf::file::File;
-use pdf_render::{Cache, SceneBackend, render_page};
-use pathfinder_rasterize::Rasterizer;
 use pathfinder_geometry::transform2d::Transform2F;
+use pathfinder_rasterize::Rasterizer;
+use pdf::file::File;
+use pdf_render::{render_page, Cache, SceneBackend};
 use std::error::Error;
 
 use std::path::PathBuf;
@@ -11,11 +11,11 @@ use std::path::PathBuf;
 ///  PDF rasterizer
 struct Options {
     /// DPI
-    #[argh(option, default="150.")]
+    #[argh(option, default = "150.")]
     dpi: f32,
 
     /// page to render (0 based)
-    #[argh(option, default="0")]
+    #[argh(option, default = "0")]
     page: u32,
 
     /// input PDF file
@@ -37,7 +37,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut cache = Cache::new();
     let mut backend = SceneBackend::new(&mut cache);
 
-    render_page(&mut backend, &file, &page, Transform2F::from_scale(opt.dpi / 25.4))?;
+    render_page(
+        &mut backend,
+        &file,
+        &page,
+        Transform2F::from_scale(opt.dpi / 25.4),
+    )?;
 
     let image = Rasterizer::new().rasterize(backend.finish(), None);
 

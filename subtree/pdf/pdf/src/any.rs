@@ -1,10 +1,10 @@
+use crate::error::{PdfError, Result};
+use crate::object::Object;
+use datasize::DataSize;
+use globalcache::ValueSize;
 use std::any::TypeId;
 use std::rc::Rc;
 use std::sync::Arc;
-use globalcache::ValueSize;
-use datasize::DataSize;
-use crate::object::{Object};
-use crate::error::{Result, PdfError};
 
 pub trait AnyObject {
     fn type_name(&self) -> &'static str;
@@ -12,7 +12,8 @@ pub trait AnyObject {
     fn size(&self) -> usize;
 }
 impl<T> AnyObject for T
-    where T: Object + 'static + DataSize
+where
+    T: Object + 'static + DataSize,
 {
     fn type_name(&self) -> &'static str {
         std::any::type_name::<T>()
@@ -29,8 +30,9 @@ impl<T> AnyObject for T
 pub struct Any(Rc<dyn AnyObject>);
 
 impl Any {
-    pub fn downcast<T>(self) -> Result<Rc<T>> 
-        where T: AnyObject + 'static
+    pub fn downcast<T>(self) -> Result<Rc<T>>
+    where
+        T: AnyObject + 'static,
     {
         if TypeId::of::<T>() == self.0.type_id() {
             unsafe {
@@ -42,7 +44,8 @@ impl Any {
         }
     }
     pub fn new<T>(rc: Rc<T>) -> Any
-        where T: AnyObject + 'static
+    where
+        T: AnyObject + 'static,
     {
         Any(rc as _)
     }
@@ -57,15 +60,16 @@ impl<T: AnyObject + 'static> From<Rc<T>> for Any {
 }
 
 #[derive(Clone)]
-pub struct AnySync(Arc<dyn AnyObject+Sync+Send>);
+pub struct AnySync(Arc<dyn AnyObject + Sync + Send>);
 
 impl AnySync {
-    pub fn downcast<T>(self) -> Result<Arc<T>> 
-        where T: AnyObject + Sync + Send + 'static
+    pub fn downcast<T>(self) -> Result<Arc<T>>
+    where
+        T: AnyObject + Sync + Send + 'static,
     {
         if TypeId::of::<T>() == self.0.type_id() {
             unsafe {
-                let raw: *const (dyn AnyObject+Sync+Send) = Arc::into_raw(self.0);
+                let raw: *const (dyn AnyObject + Sync + Send) = Arc::into_raw(self.0);
                 Ok(Arc::from_raw(raw as *const T))
             }
         } else {
@@ -73,7 +77,8 @@ impl AnySync {
         }
     }
     pub fn new<T>(arc: Arc<T>) -> AnySync
-        where T: AnyObject + Sync + Send + 'static
+    where
+        T: AnyObject + Sync + Send + 'static,
     {
         AnySync(arc as _)
     }
@@ -92,5 +97,7 @@ impl ValueSize for AnySync {
     }
 }
 fn type_mismatch<T: AnyObject + 'static>(name: &str) -> PdfError {
-    PdfError::Other { msg: format!("expected {}, found {}", std::any::type_name::<T>(), name) }
+    PdfError::Other {
+        msg: format!("expected {}, found {}", std::any::type_name::<T>(), name),
+    }
 }

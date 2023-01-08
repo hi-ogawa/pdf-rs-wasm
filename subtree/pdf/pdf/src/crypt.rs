@@ -1,44 +1,51 @@
 /// PDF "cryptography" – This is why you don't write your own crypto.
-
 use crate as pdf;
+use crate::error::{PdfError, Result};
+use crate::object::PlainRef;
+use crate::primitive::{Dictionary, Name, PdfString};
 use aes::cipher::generic_array::{sequence::Split, GenericArray};
 use aes::{Aes128, Aes256, NewBlockCipher};
 use block_modes::block_padding::{NoPadding, Pkcs7};
 use block_modes::{BlockMode, Cbc};
-use sha2::{Digest, Sha256, Sha384, Sha512};
-use std::fmt;
-use std::collections::HashMap;
 use datasize::DataSize;
-use crate::object::PlainRef;
-use crate::primitive::{Dictionary, PdfString, Name};
-use crate::error::{PdfError, Result};
+use sha2::{Digest, Sha256, Sha384, Sha512};
+use std::collections::HashMap;
+use std::fmt;
 
 const PADDING: [u8; 32] = [
-    0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41,
-    0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08,
-    0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80,
-    0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A
+    0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41, 0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08,
+    0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80, 0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A,
 ];
 
 #[derive(Copy)]
 pub struct Rc4 {
     i: u8,
     j: u8,
-    state: [u8; 256]
+    state: [u8; 256],
 }
 
-impl Clone for Rc4 { fn clone(&self) -> Rc4 { *self } }
+impl Clone for Rc4 {
+    fn clone(&self) -> Rc4 {
+        *self
+    }
+}
 
 impl Rc4 {
     pub fn new(key: &[u8]) -> Rc4 {
         assert!(!key.is_empty() && key.len() <= 256);
-        let mut rc4 = Rc4 { i: 0, j: 0, state: [0; 256] };
+        let mut rc4 = Rc4 {
+            i: 0,
+            j: 0,
+            state: [0; 256],
+        };
         for (i, x) in rc4.state.iter_mut().enumerate() {
             *x = i as u8;
         }
         let mut j: u8 = 0;
         for i in 0..256 {
-            j = j.wrapping_add(rc4.state[i]).wrapping_add(key[i % key.len()]);
+            j = j
+                .wrapping_add(rc4.state[i])
+                .wrapping_add(key[i % key.len()]);
             rc4.state.swap(i, j as usize);
         }
         rc4
@@ -60,31 +67,31 @@ impl Rc4 {
 /// 7.6.1 Table 20 + 7.6.3.2 Table 21
 #[derive(Object, Debug, Clone, DataSize)]
 pub struct CryptDict {
-    #[pdf(key="O")]
+    #[pdf(key = "O")]
     o: PdfString,
 
-    #[pdf(key="U")]
+    #[pdf(key = "U")]
     u: PdfString,
 
-    #[pdf(key="R")]
+    #[pdf(key = "R")]
     r: u32,
 
-    #[pdf(key="P")]
+    #[pdf(key = "P")]
     p: i32,
 
-    #[pdf(key="V")]
+    #[pdf(key = "V")]
     v: i32,
 
-    #[pdf(key="Length", default="40")]
+    #[pdf(key = "Length", default = "40")]
     bits: u32,
 
-    #[pdf(key="CF")]
+    #[pdf(key = "CF")]
     crypt_filters: HashMap<Name, CryptFilter>,
 
-    #[pdf(key="StmF")]
+    #[pdf(key = "StmF")]
     default_crypt_filter: Option<Name>,
 
-    #[pdf(key="EncryptMetadata", default="true")]
+    #[pdf(key = "EncryptMetadata", default = "true")]
     encrypt_metadata: bool,
 
     #[pdf(key = "OE")]
@@ -94,7 +101,7 @@ pub struct CryptDict {
     ue: Option<PdfString>,
 
     #[pdf(other)]
-    _other: Dictionary
+    _other: Dictionary,
 }
 
 #[derive(Object, Debug, Clone, Copy, DataSize)]
@@ -108,23 +115,23 @@ pub enum CryptMethod {
 #[derive(Object, Debug, Clone, Copy, DataSize)]
 pub enum AuthEvent {
     DocOpen,
-    EFOpen
+    EFOpen,
 }
 
 #[derive(Object, Debug, Clone, DataSize)]
-#[pdf(Type="CryptFilter?")]
+#[pdf(Type = "CryptFilter?")]
 pub struct CryptFilter {
-    #[pdf(key="CFM", default="CryptMethod::None")]
+    #[pdf(key = "CFM", default = "CryptMethod::None")]
     pub method: CryptMethod,
 
-    #[pdf(key="AuthEvent", default="AuthEvent::DocOpen")]
+    #[pdf(key = "AuthEvent", default = "AuthEvent::DocOpen")]
     pub auth_event: AuthEvent,
 
-    #[pdf(key="Length")]
+    #[pdf(key = "Length")]
     pub length: Option<u32>,
 
     #[pdf(other)]
-    _other: Dictionary
+    _other: Dictionary,
 }
 
 pub struct Decoder {
@@ -150,10 +157,15 @@ impl Decoder {
     }
 
     fn key(&self) -> &[u8] {
-        &self.key[.. self.key_size]
+        &self.key[..self.key_size]
     }
 
-    pub fn new(key: [u8; 32], key_size: usize, method: CryptMethod, encrypt_metadata: bool) -> Decoder {
+    pub fn new(
+        key: [u8; 32],
+        key_size: usize,
+        method: CryptMethod,
+        encrypt_metadata: bool,
+    ) -> Decoder {
         Decoder {
             key_size,
             key,
@@ -295,8 +307,13 @@ impl Decoder {
                 let default = dict
                     .crypt_filters
                     .get(try_opt!(dict.default_crypt_filter.as_ref()).as_str())
-                    .ok_or_else(|| other!("missing crypt filter entry {:?}", dict.default_crypt_filter.as_ref()))?;
-                
+                    .ok_or_else(|| {
+                        other!(
+                            "missing crypt filter entry {:?}",
+                            dict.default_crypt_filter.as_ref()
+                        )
+                    })?;
+
                 match default.method {
                     CryptMethod::V2 | CryptMethod::AESV2 => (
                         default.length.map(|n| 8 * n).unwrap_or(dict.bits),
@@ -313,7 +330,10 @@ impl Decoder {
         };
         let level = dict.r;
         if !(2..=6).contains(&level) {
-            err!(other!("unsupported standard security handler revision {}", level))
+            err!(other!(
+                "unsupported standard security handler revision {}",
+                level
+            ))
         };
         if level <= 4 {
             let key_size = key_bits as usize / 8;
@@ -458,7 +478,7 @@ impl Decoder {
             let mut key = [0u8; 32];
             key.copy_from_slice(key_slice);
 
-            let decoder = Decoder::new(key,  32, method, dict.encrypt_metadata);
+            let decoder = Decoder::new(key, 32, method, dict.encrypt_metadata);
             Ok(decoder)
         } else {
             err!(format!("unsupported V value {}", level).into())
@@ -586,7 +606,8 @@ impl Decoder {
                 }
                 let (iv, ciphertext) = data.split_at_mut(16);
                 let cipher =
-                    t!(Aes128Cbc::new_from_slices(key, iv).map_err(|_| PdfError::DecryptionFailure));
+                    t!(Aes128Cbc::new_from_slices(key, iv)
+                        .map_err(|_| PdfError::DecryptionFailure));
                 Ok(t!(cipher
                     .decrypt(ciphertext)
                     .map_err(|_| PdfError::DecryptionFailure)))
@@ -597,8 +618,8 @@ impl Decoder {
                     return Err(PdfError::DecryptionFailure);
                 }
                 let (iv, ciphertext) = data.split_at_mut(16);
-                let cipher =
-                    t!(Aes256Cbc::new_from_slices(self.key(), iv).map_err(|_| PdfError::DecryptionFailure));
+                let cipher = t!(Aes256Cbc::new_from_slices(self.key(), iv)
+                    .map_err(|_| PdfError::DecryptionFailure));
                 Ok(t!(cipher
                     .decrypt(ciphertext)
                     .map_err(|_| PdfError::DecryptionFailure)))

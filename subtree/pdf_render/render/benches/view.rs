@@ -1,33 +1,39 @@
 #![feature(test)]
 extern crate test;
 
+use pathfinder_renderer::scene::Scene;
 use pdf::file::File as PdfFile;
 use pdf::object::*;
+use pdf_render::{render_page, Cache, SceneBackend};
 use std::path::Path;
-use pdf_render::{Cache, render_page, SceneBackend};
-use pathfinder_renderer::scene::Scene;
 use test::Bencher;
 
 fn render_file(path: &Path) -> Vec<Scene> {
     let file = PdfFile::<Vec<u8>>::open(path).unwrap();
-    
+
     let mut cache = Cache::new();
-    file.pages().map(|page| {
-        let p: &Page = &*page.unwrap();
-        let mut backend = SceneBackend::new(&mut cache);
-        render_page(&mut backend, &file, p, Default::default()).unwrap();
-        backend.finish()
-    }).collect()
+    file.pages()
+        .map(|page| {
+            let p: &Page = &*page.unwrap();
+            let mut backend = SceneBackend::new(&mut cache);
+            render_page(&mut backend, &file, p, Default::default()).unwrap();
+            backend.finish()
+        })
+        .collect()
 }
 
 macro_rules! bench_file {
-    ($file:expr, $name:ident) => (
+    ($file:expr, $name:ident) => {
         #[bench]
         fn $name(bencher: &mut Bencher) {
-            let path = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join("files").join($file);
+            let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap()
+                .join("files")
+                .join($file);
             bencher.iter(|| render_file(&path))
         }
-    )
+    };
 }
 /*
 bench_file!("example.pdf", example);

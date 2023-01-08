@@ -1,27 +1,22 @@
-use pdf::object::*;
-use pdf::primitive::{Primitive, Dictionary};
-use pdf::content::{Op, Matrix, Point, Rect, Color, Rgb, Cmyk, Winding, FormXObject};
-use pdf::error::{PdfError, Result};
-use pdf::content::TextDrawAdjusted;
 use crate::backend::Backend;
+use pdf::content::TextDrawAdjusted;
+use pdf::content::{Cmyk, Color, FormXObject, Matrix, Op, Point, Rect, Rgb, Winding};
+use pdf::error::{PdfError, Result};
+use pdf::object::*;
+use pdf::primitive::{Dictionary, Primitive};
 
-use pathfinder_geometry::{
-    vector::{Vector2F},
-    rect::RectF, transform2d::{Transform2F},
+use super::{
+    backend::Stroke,
+    graphicsstate::GraphicsState,
+    textstate::{Span, TextState},
+    DrawMode, Fill, TextSpan,
 };
 use pathfinder_content::{
     fill::FillRule,
+    outline::{Contour, Outline},
     stroke::{LineCap, LineJoin, StrokeStyle},
-    outline::{Outline, Contour},
 };
-use super::{
-    graphicsstate::{GraphicsState},
-    textstate::{TextState, Span},
-    DrawMode,
-    TextSpan,
-    Fill,
-    backend::Stroke,
-};
+use pathfinder_geometry::{rect::RectF, transform2d::Transform2F, vector::Vector2F};
 
 trait Cvt {
     type Out;
@@ -45,7 +40,7 @@ impl Cvt for Rect {
     fn cvt(self) -> Self::Out {
         RectF::new(
             Vector2F::new(self.x, self.y),
-            Vector2F::new(self.width, self.height)
+            Vector2F::new(self.width, self.height),
         )
     }
 }
@@ -54,7 +49,7 @@ impl Cvt for Winding {
     fn cvt(self) -> Self::Out {
         match self {
             Winding::NonZero => FillRule::Winding,
-            Winding::EvenOdd => FillRule::EvenOdd
+            Winding::EvenOdd => FillRule::EvenOdd,
         }
     }
 }
@@ -68,7 +63,12 @@ impl Cvt for Rgb {
 impl Cvt for Cmyk {
     type Out = (f32, f32, f32, f32);
     fn cvt(self) -> Self::Out {
-        let Cmyk { cyan, magenta, yellow, key } = self;
+        let Cmyk {
+            cyan,
+            magenta,
+            yellow,
+            key,
+        } = self;
         (cyan, magenta, yellow, key)
     }
 }
@@ -85,7 +85,12 @@ pub struct RenderState<'a, R: Resolve, B: Backend> {
 }
 
 impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
-    pub fn new(backend: &'a mut B, resolve: &'a R, resources: &'a Resources, root_transformation: Transform2F) -> Self {
+    pub fn new(
+        backend: &'a mut B,
+        resolve: &'a R,
+        resources: &'a Resources,
+        root_transformation: Transform2F,
+    ) -> Self {
         let graphics_state = GraphicsState {
             transform: root_transformation,
             fill_color: Fill::black(),
@@ -125,7 +130,12 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
     }
     fn draw(&mut self, mode: &DrawMode, fill_rule: FillRule) {
         self.flush();
-        self.backend.draw(&self.current_outline, mode, fill_rule, self.graphics_state.transform);
+        self.backend.draw(
+            &self.current_outline,
+            mode,
+            fill_rule,
+            self.graphics_state.transform,
+        );
         self.current_outline.clear();
     }
     #[allow(unused_variables)]
@@ -140,86 +150,114 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
             Op::MoveTo { p } => {
                 self.flush();
                 self.current_contour.push_endpoint(p.cvt());
-            },
+            }
             Op::LineTo { p } => {
                 self.current_contour.push_endpoint(p.cvt());
-            },
+            }
             Op::CurveTo { c1, c2, p } => {
                 self.current_contour.push_cubic(c1.cvt(), c2.cvt(), p.cvt());
-            },
+            }
             Op::Rect { rect } => {
                 self.flush();
-                self.current_outline.push_contour(Contour::from_rect(rect.cvt()));
-            },
+                self.current_outline
+                    .push_contour(Contour::from_rect(rect.cvt()));
+            }
             Op::EndPath => {
                 self.current_contour.clear();
                 self.current_outline.clear();
             }
             Op::Stroke => {
-                self.draw(&DrawMode::Stroke(
-                    self.graphics_state.stroke_color,
-                    self.graphics_state.stroke_color_alpha,
-                    self.graphics_state.stroke(),
-                ), FillRule::Winding);
-            },
+                self.draw(
+                    &DrawMode::Stroke(
+                        self.graphics_state.stroke_color,
+                        self.graphics_state.stroke_color_alpha,
+                        self.graphics_state.stroke(),
+                    ),
+                    FillRule::Winding,
+                );
+            }
             Op::FillAndStroke { winding } => {
-                self.draw(&DrawMode::FillStroke(
-                    self.graphics_state.fill_color,
-                    self.graphics_state.fill_color_alpha,
-                    self.graphics_state.stroke_color,
-                    self.graphics_state.stroke_color_alpha,
-                    self.graphics_state.stroke(),
-                ), winding.cvt());
+                self.draw(
+                    &DrawMode::FillStroke(
+                        self.graphics_state.fill_color,
+                        self.graphics_state.fill_color_alpha,
+                        self.graphics_state.stroke_color,
+                        self.graphics_state.stroke_color_alpha,
+                        self.graphics_state.stroke(),
+                    ),
+                    winding.cvt(),
+                );
             }
             Op::Fill { winding } => {
-                self.draw(&DrawMode::Fill(
-                    self.graphics_state.fill_color,
-                    self.graphics_state.fill_color_alpha
-                ), winding.cvt());
+                self.draw(
+                    &DrawMode::Fill(
+                        self.graphics_state.fill_color,
+                        self.graphics_state.fill_color_alpha,
+                    ),
+                    winding.cvt(),
+                );
             }
-            Op::Shade { ref name } => {},
+            Op::Shade { ref name } => {}
             Op::Clip { winding } => {
                 self.flush();
-                let path = self.current_outline.clone().transformed(&self.graphics_state.transform);
+                let path = self
+                    .current_outline
+                    .clone()
+                    .transformed(&self.graphics_state.transform);
                 //self.debug_outline(path.clone(), ColorU::new(0, 0, 255, 50));
 
                 self.graphics_state.merge_clip_path(path, winding.cvt());
 
-                self.backend.set_clip_path(self.graphics_state.clip_path.as_ref().map(|c| &c.outline));
+                self.backend
+                    .set_clip_path(self.graphics_state.clip_path.as_ref().map(|c| &c.outline));
                 //let o = self.graphics_state.clip_path.as_ref().unwrap().outline().clone();
                 //self.debug_outline(o, ColorU::new(255, 0, 0, 50));
-            },
+            }
 
             Op::Save => {
-                self.stack.push((self.graphics_state.clone(), self.text_state.clone()));
-            },
+                self.stack
+                    .push((self.graphics_state.clone(), self.text_state.clone()));
+            }
             Op::Restore => {
-                let (g, t) = self.stack.pop().ok_or_else(|| pdf::error::PdfError::Other { msg: "graphcs stack is empty".into() })?;
+                let (g, t) = self
+                    .stack
+                    .pop()
+                    .ok_or_else(|| pdf::error::PdfError::Other {
+                        msg: "graphcs stack is empty".into(),
+                    })?;
                 self.graphics_state = g;
                 self.text_state = t;
-                self.backend.set_clip_path(self.graphics_state.clip_path.as_ref().map(|c| &c.outline));
-            },
+                self.backend
+                    .set_clip_path(self.graphics_state.clip_path.as_ref().map(|c| &c.outline));
+            }
 
             Op::Transform { matrix } => {
                 self.graphics_state.transform = self.graphics_state.transform * matrix.cvt();
             }
             Op::LineWidth { width } => self.graphics_state.stroke_style.line_width = width,
-            Op::Dash { ref pattern, phase } => self.graphics_state.dash_pattern = Some((&*pattern, phase)),
-            Op::LineJoin { join } => {},
-            Op::LineCap { cap } => {},
-            Op::MiterLimit { limit } => {},
-            Op::Flatness { tolerance } => {},
+            Op::Dash { ref pattern, phase } => {
+                self.graphics_state.dash_pattern = Some((&*pattern, phase))
+            }
+            Op::LineJoin { join } => {}
+            Op::LineCap { cap } => {}
+            Op::MiterLimit { limit } => {}
+            Op::Flatness { tolerance } => {}
             Op::GraphicsState { ref name } => {
                 let gs = try_opt!(self.resources.graphics_states.get(name));
                 if let Some(lw) = gs.line_width {
                     self.graphics_state.stroke_style.line_width = lw;
                 }
-                self.graphics_state.set_fill_alpha(gs.fill_alpha.unwrap_or(1.0));
-                self.graphics_state.set_stroke_alpha(gs.stroke_alpha.unwrap_or(1.0));
-                
+                self.graphics_state
+                    .set_fill_alpha(gs.fill_alpha.unwrap_or(1.0));
+                self.graphics_state
+                    .set_stroke_alpha(gs.stroke_alpha.unwrap_or(1.0));
+
                 if let Some((font_ref, size)) = gs.font {
                     let font = self.resolve.get(font_ref)?;
-                    if let Some(e) = self.backend.get_font(&MaybeRef::Indirect(font), self.resolve)? {
+                    if let Some(e) = self
+                        .backend
+                        .get_font(&MaybeRef::Indirect(font), self.resolve)?
+                    {
                         debug!("new font: {} at size {}", e.name, size);
                         self.text_state.font_entry = Some(e);
                         self.text_state.font_size = size;
@@ -227,36 +265,44 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
                         self.text_state.font_entry = None;
                     }
                 }
-            },
+            }
             Op::StrokeColor { ref color } => {
-                let color = t!(convert_color(&mut self.graphics_state.stroke_color_space, color, &self.resources, self.resolve));
+                let color = t!(convert_color(
+                    &mut self.graphics_state.stroke_color_space,
+                    color,
+                    &self.resources,
+                    self.resolve
+                ));
                 self.graphics_state.set_stroke_color(color);
-            },
+            }
             Op::FillColor { ref color } => {
-                let color = t!(convert_color(&mut self.graphics_state.fill_color_space, color, &self.resources, self.resolve));
+                let color = t!(convert_color(
+                    &mut self.graphics_state.fill_color_space,
+                    color,
+                    &self.resources,
+                    self.resolve
+                ));
                 self.graphics_state.set_fill_color(color);
-            },
+            }
             Op::FillColorSpace { ref name } => {
                 self.graphics_state.fill_color_space = self.color_space(name)?;
                 self.graphics_state.set_fill_color(Fill::black());
-            },
+            }
             Op::StrokeColorSpace { ref name } => {
                 self.graphics_state.stroke_color_space = self.color_space(name)?;
                 self.graphics_state.set_stroke_color(Fill::black());
-            },
-            Op::RenderingIntent { intent } => {},
+            }
+            Op::RenderingIntent { intent } => {}
             Op::BeginText => self.text_state.reset_matrix(),
-            Op::EndText => {},
+            Op::EndText => {}
             Op::CharSpacing { char_space } => self.text_state.char_space = char_space,
             Op::WordSpacing { word_space } => self.text_state.word_space = word_space,
             Op::TextScaling { horiz_scale } => self.text_state.horiz_scale = 0.01 * horiz_scale,
             Op::Leading { leading } => self.text_state.leading = leading,
             Op::TextFont { ref name, size } => {
                 let font = match self.resources.fonts.get(name) {
-                    Some(font_ref) => {
-                        self.backend.get_font(font_ref, self.resolve)?
-                    },
-                    None => None
+                    Some(font_ref) => self.backend.get_font(font_ref, self.resolve)?,
+                    None => None,
                 };
                 if let Some(e) = font {
                     debug!("new font: {} (is_cid={:?})", e.name, e.is_cid);
@@ -266,7 +312,7 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
                     info!("no font {}", name);
                     self.text_state.font_entry = None;
                 }
-            },
+            }
             Op::TextRenderMode { mode } => self.text_state.mode = mode,
             Op::TextRise { rise } => self.text_state.rise = rise,
             Op::MoveTextPosition { translation } => self.text_state.translate(translation.cvt()),
@@ -276,14 +322,19 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
                 self.text(|backend, text_state, graphics_state, span| {
                     text_state.draw_text(backend, graphics_state, &text.data, span);
                 });
-            },
+            }
             Op::TextDrawAdjusted { ref array } => {
                 self.text(|backend, text_state, graphics_state, span| {
                     for arg in array {
                         match *arg {
                             TextDrawAdjusted::Text(ref data) => {
-                                text_state.draw_text(backend, graphics_state, data.as_bytes(), span);
-                            },
+                                text_state.draw_text(
+                                    backend,
+                                    graphics_state,
+                                    data.as_bytes(),
+                                    span,
+                                );
+                            }
                             TextDrawAdjusted::Spacing(offset) => {
                                 // because why not PDF…
                                 let advance = text_state.advance(-0.001 * offset);
@@ -292,13 +343,25 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
                         }
                     }
                 });
-            },
+            }
             Op::XObject { ref name } => {
-                let &xobject_ref = self.resources.xobjects.get(name).ok_or(PdfError::NotFound { word: name.as_str().into()})?;
+                let &xobject_ref = self
+                    .resources
+                    .xobjects
+                    .get(name)
+                    .ok_or(PdfError::NotFound {
+                        word: name.as_str().into(),
+                    })?;
                 let xobject = self.resolve.get(xobject_ref)?;
                 match *xobject {
                     XObject::Image(ref im) => {
-                        self.backend.draw_image(xobject_ref, im, self.resources, self.graphics_state.transform, self.resolve);
+                        self.backend.draw_image(
+                            xobject_ref,
+                            im,
+                            self.resources,
+                            self.graphics_state.transform,
+                            self.resolve,
+                        );
                     }
                     XObject::Form(ref content) => {
                         self.draw_form(content)?;
@@ -307,9 +370,14 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
                         warn!("Got PostScript?!");
                     }
                 }
-            },
+            }
             Op::InlineImage { ref image } => {
-                self.backend.draw_inline_image(image, &self.resources, self.graphics_state.transform, self.resolve);
+                self.backend.draw_inline_image(
+                    image,
+                    &self.resources,
+                    self.graphics_state.transform,
+                    self.resolve,
+                );
             }
         }
 
@@ -321,11 +389,19 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
         let tm = self.text_state.text_matrix;
         let origin = tm.translation();
 
-        inner(&mut self.backend, &mut self.text_state, &mut self.graphics_state, &mut span);
+        inner(
+            &mut self.backend,
+            &mut self.text_state,
+            &mut self.graphics_state,
+            &mut span,
+        );
 
-        let transform = self.graphics_state.transform * tm * Transform2F::from_scale(Vector2F::new(1.0, -1.0));
+        let transform =
+            self.graphics_state.transform * tm * Transform2F::from_scale(Vector2F::new(1.0, -1.0));
         let p1 = origin;
-        let p2 = (tm * Transform2F::from_translation(Vector2F::new(span.width, self.text_state.font_size))).translation();
+        let p2 = (tm
+            * Transform2F::from_translation(Vector2F::new(span.width, self.text_state.font_size)))
+        .translation();
 
         debug!("text {}", span.text);
         self.backend.add_text(TextSpan {
@@ -352,12 +428,15 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
         }
         match self.resources.color_spaces.get(name) {
             Some(cs) => Ok(cs),
-            None => Err(PdfError::Other { msg: format!("color space {:?} not present", name) })
+            None => Err(PdfError::Other {
+                msg: format!("color space {:?} not present", name),
+            }),
         }
     }
     fn flush(&mut self) {
         if !self.current_contour.is_empty() {
-            self.current_outline.push_contour(self.current_contour.clone());
+            self.current_outline
+                .push_contour(self.current_contour.clone());
             self.current_contour.clear();
         }
     }
@@ -366,11 +445,11 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
             stroke_alpha: self.graphics_state.stroke_color_alpha,
             fill_alpha: self.graphics_state.fill_color_alpha,
             clip_path: self.graphics_state.clip_path.clone(),
-            .. self.graphics_state
+            ..self.graphics_state
         };
         let resources = match form.dict().resources {
             Some(ref r) => &*r,
-            None => self.resources
+            None => self.resources,
         };
 
         let mut inner = RenderState {
@@ -383,7 +462,7 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
             backend: self.backend,
             resolve: self.resolve,
         };
-        
+
         let ops = t!(form.operations(self.resolve));
         for (i, op) in ops.iter().enumerate() {
             debug!(" form op {}: {:?}", i, op);
@@ -396,31 +475,44 @@ impl<'a, R: Resolve, B: Backend> RenderState<'a, R, B> {
     fn get_properties<'b>(&'b self, p: &'b Primitive) -> Result<&'b Dictionary> {
         match p {
             Primitive::Dictionary(ref dict) => Ok(dict),
-            Primitive::Name(ref name) => self.resources.properties.get(name.as_str())
+            Primitive::Name(ref name) => self
+                .resources
+                .properties
+                .get(name.as_str())
                 .map(|rc| &**rc)
-                .ok_or_else(|| {
-                    PdfError::MissingEntry { typ: "Properties", field: name.into() }
+                .ok_or_else(|| PdfError::MissingEntry {
+                    typ: "Properties",
+                    field: name.into(),
                 }),
             p => Err(PdfError::UnexpectedPrimitive {
                 expected: "Dictionary or Name",
-                found: p.get_debug_name()
-            })
+                found: p.get_debug_name(),
+            }),
         }
     }
 }
 
-fn convert_color<'a>(cs: &mut &'a ColorSpace, color: &Color, resources: &Resources, resolve: &impl Resolve) -> Result<Fill> {
+fn convert_color<'a>(
+    cs: &mut &'a ColorSpace,
+    color: &Color,
+    resources: &Resources,
+    resolve: &impl Resolve,
+) -> Result<Fill> {
     match convert_color2(cs, color, resources) {
         Ok(color) => Ok(color),
         Err(e) if resolve.options().allow_error_in_option => {
             warn!("failed to convert color: {:?}", e);
             Ok(Fill::Solid(0.0, 0.0, 0.0))
         }
-        Err(e) => Err(e)
+        Err(e) => Err(e),
     }
 }
 #[allow(unused_variables)]
-fn convert_color2<'a>(cs: &mut &'a ColorSpace, color: &Color, resources: &Resources) -> Result<Fill> {
+fn convert_color2<'a>(
+    cs: &mut &'a ColorSpace,
+    color: &Color,
+    resources: &Resources,
+) -> Result<Fill> {
     match *color {
         Color::Gray(g) => {
             *cs = &ColorSpace::DeviceGray;
@@ -437,38 +529,49 @@ fn convert_color2<'a>(cs: &mut &'a ColorSpace, color: &Color, resources: &Resour
         }
         Color::Other(ref args) => {
             let cs = match **cs {
-                ColorSpace::Icc(ref icc) => {
-                    match icc.info.alternate {
-                        Some(ref alt) => alt,
-                        None => {
-                            match args.len() {
-                                3 => &ColorSpace::DeviceRGB,
-                                4 => &ColorSpace::DeviceCMYK,
-                                _ => return Err(PdfError::Other { msg: format!("ICC profile without alternate color space") })
-                            }
+                ColorSpace::Icc(ref icc) => match icc.info.alternate {
+                    Some(ref alt) => alt,
+                    None => match args.len() {
+                        3 => &ColorSpace::DeviceRGB,
+                        4 => &ColorSpace::DeviceCMYK,
+                        _ => {
+                            return Err(PdfError::Other {
+                                msg: format!("ICC profile without alternate color space"),
+                            })
                         }
-                    }
-                }
+                    },
+                },
                 ColorSpace::Named(ref name) => {
-                    resources.color_spaces.get(name).ok_or_else(|| 
-                        PdfError::Other { msg: format!("named color space {} not found", name) }
-                    )?
+                    resources
+                        .color_spaces
+                        .get(name)
+                        .ok_or_else(|| PdfError::Other {
+                            msg: format!("named color space {} not found", name),
+                        })?
                 }
-                _ => &**cs
+                _ => &**cs,
             };
-            
+
             match *cs {
-                ColorSpace::Icc(_) => return Err(PdfError::Other { msg: format!("nested ICC color space") }),
+                ColorSpace::Icc(_) => {
+                    return Err(PdfError::Other {
+                        msg: format!("nested ICC color space"),
+                    })
+                }
                 ColorSpace::DeviceGray | ColorSpace::CalGray(_) => {
                     if args.len() != 1 {
-                        return Err(PdfError::Other { msg: format!("expected 1 color arguments, got {:?}", args) });
+                        return Err(PdfError::Other {
+                            msg: format!("expected 1 color arguments, got {:?}", args),
+                        });
                     }
                     let g = args[0].as_number()?;
                     Ok(gray2rgb(g))
                 }
                 ColorSpace::DeviceRGB | ColorSpace::CalRGB(_) => {
                     if args.len() != 3 {
-                        return Err(PdfError::Other { msg: format!("expected 3 color arguments, got {:?}", args) });
+                        return Err(PdfError::Other {
+                            msg: format!("expected 3 color arguments, got {:?}", args),
+                        });
                     }
                     let r = args[0].as_number()?;
                     let g = args[1].as_number()?;
@@ -477,7 +580,9 @@ fn convert_color2<'a>(cs: &mut &'a ColorSpace, color: &Color, resources: &Resour
                 }
                 ColorSpace::DeviceCMYK | ColorSpace::CalCMYK(_) => {
                     if args.len() != 4 {
-                        return Err(PdfError::Other { msg: format!("expected 4 color arguments, got {:?}", args) });
+                        return Err(PdfError::Other {
+                            msg: format!("expected 4 color arguments, got {:?}", args),
+                        });
                     }
                     let c = args[0].as_number()?;
                     let m = args[1].as_number()?;
@@ -485,7 +590,12 @@ fn convert_color2<'a>(cs: &mut &'a ColorSpace, color: &Color, resources: &Resour
                     let k = args[3].as_number()?;
                     Ok(cmyk2rgb((c, m, y, k)))
                 }
-                ColorSpace::DeviceN { ref names, ref alt, ref tint, ref attr } => {
+                ColorSpace::DeviceN {
+                    ref names,
+                    ref alt,
+                    ref tint,
+                    ref attr,
+                } => {
                     assert_eq!(args.len(), tint.input_dim());
                     let mut input = vec![0.; args.len()];
                     for (i, a) in input.iter_mut().zip(args.iter()) {
@@ -500,25 +610,27 @@ fn convert_color2<'a>(cs: &mut &'a ColorSpace, color: &Color, resources: &Resour
                     };
                     match alt {
                         Some(ColorSpace::DeviceGray) => Ok(Fill::Solid(out[0], out[0], out[0])),
-                        Some(ColorSpace::DeviceRGB) => {
-                            Ok(Fill::Solid(out[0], out[1], out[2]))
-                        }
+                        Some(ColorSpace::DeviceRGB) => Ok(Fill::Solid(out[0], out[1], out[2])),
                         Some(ColorSpace::DeviceCMYK) => {
                             Ok(cmyk2rgb((out[0], out[1], out[2], out[3])))
                         }
-                        _ => unimplemented!("DeviceN colorspace")
+                        _ => unimplemented!("DeviceN colorspace"),
                     }
                 }
                 ColorSpace::Separation(ref name, ref alt, ref f) => {
                     debug!("Separation(name={}, alt={:?}, f={:?}", name, alt, f);
                     if args.len() != 1 {
-                        return Err(PdfError::Other { msg: format!("expected 1 color arguments, got {:?}", args) });
+                        return Err(PdfError::Other {
+                            msg: format!("expected 1 color arguments, got {:?}", args),
+                        });
                     }
                     let x = args[0].as_number()?;
                     let cs = match **alt {
-                        ColorSpace::Icc(ref info) => &**info.alternate.as_ref().ok_or(
-                            PdfError::Other { msg: format!("no alternate color space in ICC profile {:?}", info) }
-                        )?,
+                        ColorSpace::Icc(ref info) => {
+                            &**info.alternate.as_ref().ok_or(PdfError::Other {
+                                msg: format!("no alternate color space in ICC profile {:?}", info),
+                            })?
+                        }
                         _ => alt,
                     };
                     match cs {
@@ -528,14 +640,14 @@ fn convert_color2<'a>(cs: &mut &'a ColorSpace, color: &Color, resources: &Resour
                             let [c, m, y, k] = cmyk;
                             //debug!("c={c}, m={m}, y={y}, k={k}");
                             Ok(cmyk2rgb((c, m, y, k)))
-                        },
+                        }
                         &ColorSpace::DeviceRGB => {
                             let mut rgb = [0.0, 0.0, 0.0];
                             f.apply(&[x], &mut rgb)?;
                             let [r, g, b] = rgb;
                             //debug!("r={r}, g={g}, b={b}");
                             Ok(Fill::Solid(r, g, b))
-                        },
+                        }
                         &ColorSpace::DeviceGray => {
                             let mut gray = [0.0];
                             f.apply(&[x], &mut gray)?;
@@ -543,26 +655,28 @@ fn convert_color2<'a>(cs: &mut &'a ColorSpace, color: &Color, resources: &Resour
                             //debug!("gray={gray}");
                             Ok(Fill::Solid(gray, gray, gray))
                         }
-                        c => unimplemented!("Separation(alt={:?})", c)
+                        c => unimplemented!("Separation(alt={:?})", c),
                     }
                 }
                 ColorSpace::Indexed(ref cs, ref lut) => {
                     if args.len() != 1 {
-                        return Err(PdfError::Other { msg: format!("expected 1 color arguments, got {:?}", args) });
+                        return Err(PdfError::Other {
+                            msg: format!("expected 1 color arguments, got {:?}", args),
+                        });
                     }
                     let i = args[0].as_integer()?;
                     match **cs {
                         ColorSpace::DeviceRGB => {
-                            let c = &lut[3 * i as usize ..];
+                            let c = &lut[3 * i as usize..];
                             let cvt = |b: u8| b as f32;
                             Ok(Fill::Solid(cvt(c[0]), cvt(c[1]), cvt(c[2])))
                         }
                         ColorSpace::DeviceCMYK => {
-                            let c = &lut[4 * i as usize ..];
+                            let c = &lut[4 * i as usize..];
                             let cvt = |b: u8| b as f32;
                             Ok(cmyk2rgb((cvt(c[0]), cvt(c[1]), cvt(c[2]), cvt(c[3]))))
                         }
-                        ref base => unimplemented!("Indexed colorspace with base {:?}", base)
+                        ref base => unimplemented!("Indexed colorspace with base {:?}", base),
                     }
                 }
                 ColorSpace::Pattern => {
@@ -586,9 +700,5 @@ fn gray2rgb(g: f32) -> Fill {
 
 fn cmyk2rgb((c, m, y, k): (f32, f32, f32, f32)) -> Fill {
     let clamp = |f| if f > 1.0 { 1.0 } else { f };
-    Fill::Solid(
-        1.0 - clamp(c + k),
-        1.0 - clamp(m + k),
-        1.0 - clamp(y + k),
-    )
+    Fill::Solid(1.0 - clamp(c + k), 1.0 - clamp(m + k), 1.0 - clamp(y + k))
 }

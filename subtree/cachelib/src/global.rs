@@ -1,9 +1,9 @@
-use tracing::debug;
-use tokio::sync::mpsc;
-use std::sync::Weak;
-use once_cell::sync::OnceCell;
 use super::CacheControl;
+use once_cell::sync::OnceCell;
 use std::future::Future;
+use std::sync::Weak;
+use tokio::sync::mpsc;
+use tracing::debug;
 
 pub struct GlobalCache {
     register: mpsc::UnboundedSender<Weak<dyn CacheControl>>,
@@ -22,8 +22,8 @@ pub struct CacheConfig {
     pub time_scale: f64,
 }
 
-pub fn global_cleaner(config: CacheConfig) -> impl Future<Output=()> {
-    use tokio::time::{Duration, sleep};
+pub fn global_cleaner(config: CacheConfig) -> impl Future<Output = ()> {
+    use tokio::time::{sleep, Duration};
 
     let (tx, mut rx) = mpsc::unbounded_channel();
     GlobalCache { register: tx }.make_global();

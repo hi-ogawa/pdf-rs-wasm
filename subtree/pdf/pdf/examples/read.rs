@@ -1,16 +1,15 @@
 extern crate pdf;
 
-use std::env::args;
-use std::time::SystemTime;
-use std::fs;
 use std::collections::HashMap;
+use std::env::args;
+use std::fs;
+use std::time::SystemTime;
 
+use pdf::enc::StreamFilter;
+use pdf::error::PdfError;
 use pdf::file::File;
 use pdf::object::*;
 use pdf::primitive::Primitive;
-use pdf::error::PdfError;
-use pdf::enc::StreamFilter;
-
 
 fn main() -> Result<(), PdfError> {
     let path = args().nth(1).expect("no file given");
@@ -26,7 +25,7 @@ fn main() -> Result<(), PdfError> {
             (Some(title), None) => title,
             (None, Some(author)) => format!("[no title] – {}", author),
             (Some(title), Some(author)) => format!("{} – {}", title, author),
-            _ => "PDF".into()
+            _ => "PDF".into(),
         };
         println!("{}", descr);
     }
@@ -44,15 +43,19 @@ fn main() -> Result<(), PdfError> {
             };
             fonts.insert(name, font.clone());
         }
-        images.extend(resources.xobjects.iter().map(|(_name, &r)| file.get(r).unwrap())
-            .filter(|o| matches!(**o, XObject::Image(_)))
+        images.extend(
+            resources
+                .xobjects
+                .iter()
+                .map(|(_name, &r)| file.get(r).unwrap())
+                .filter(|o| matches!(**o, XObject::Image(_))),
         );
     }
 
     for (i, o) in images.iter().enumerate() {
         let img = match **o {
             XObject::Image(ref im) => im,
-            _ => continue
+            _ => continue,
         };
         let (data, filter) = img.raw_image_data(&file)?;
         let ext = match filter {
@@ -63,12 +66,11 @@ fn main() -> Result<(), PdfError> {
         };
 
         let fname = format!("extracted_image_{}.{}", i, ext);
-        
+
         fs::write(fname.as_str(), data).unwrap();
         println!("Wrote file {}", fname);
     }
     println!("Found {} image(s).", images.len());
-
 
     for (name, font) in fonts.iter() {
         let fname = format!("font_{}", name);
@@ -84,12 +86,10 @@ fn main() -> Result<(), PdfError> {
         for field in forms.fields.iter() {
             print!("  {:?} = ", field.name);
             match field.value {
-                Primitive::String(ref s) => {
-                    match s.to_string_lossy() {
-                        Ok(s) => println!("{:?}", s),
-                        Err(_) => println!("{:?}", s),
-                    }
-                }
+                Primitive::String(ref s) => match s.to_string_lossy() {
+                    Ok(s) => println!("{:?}", s),
+                    Err(_) => println!("{:?}", s),
+                },
                 Primitive::Integer(i) => println!("{}", i),
                 Primitive::Name(ref s) => println!("{}", s),
                 ref p => println!("{:?}", p),
@@ -98,8 +98,10 @@ fn main() -> Result<(), PdfError> {
     }
 
     if let Ok(elapsed) = now.elapsed() {
-        println!("Time: {}s", elapsed.as_secs() as f64
-                 + elapsed.subsec_nanos() as f64 * 1e-9);
+        println!(
+            "Time: {}s",
+            elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 * 1e-9
+        );
     }
     Ok(())
 }

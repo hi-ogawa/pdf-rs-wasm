@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use istring::SmallString;
 use crate as pdf;
+use crate::error::Result;
 use crate::object::{Object, Resolve};
 use crate::primitive::Primitive;
-use crate::error::{Result};
 use datasize::DataSize;
+use istring::SmallString;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, DataSize)]
 pub struct Encoding {
@@ -19,7 +19,7 @@ pub enum BaseEncoding {
     MacRomanEncoding,
     WinAnsiEncoding,
     MacExpertEncoding,
-    #[pdf(name="Identity-H")]
+    #[pdf(name = "Identity-H")]
     IdentityH,
     None,
 
@@ -29,16 +29,14 @@ pub enum BaseEncoding {
 impl Object for Encoding {
     fn from_primitive(p: Primitive, resolve: &impl Resolve) -> Result<Self> {
         match p {
-            name @ Primitive::Name(_) => { 
-                Ok(Encoding {
-                    base: BaseEncoding::from_primitive(name, resolve)?,
-                    differences: HashMap::new(),
-                })
-            }
+            name @ Primitive::Name(_) => Ok(Encoding {
+                base: BaseEncoding::from_primitive(name, resolve)?,
+                differences: HashMap::new(),
+            }),
             Primitive::Dictionary(mut dict) => {
                 let base = match dict.remove("BaseEncoding") {
                     Some(p) => BaseEncoding::from_primitive(p, resolve)?,
-                    None => BaseEncoding::None
+                    None => BaseEncoding::None,
                 };
                 let mut gid = 0;
                 let mut differences = HashMap::new();
@@ -51,23 +49,23 @@ impl Object for Encoding {
                             Primitive::Name(name) => {
                                 differences.insert(gid, name);
                                 gid += 1;
-                            },
-                            _ => panic!()
+                            }
+                            _ => panic!(),
                         }
                     }
                 }
                 Ok(Encoding { base, differences })
             }
             Primitive::Reference(r) => Self::from_primitive(resolve.resolve(r)?, resolve),
-            _ => panic!()
+            _ => panic!(),
         }
     }
 }
-impl Encoding { 
+impl Encoding {
     pub fn standard() -> Encoding {
         Encoding {
             base: BaseEncoding::StandardEncoding,
-            differences: HashMap::new()
+            differences: HashMap::new(),
         }
     }
 }

@@ -1,10 +1,10 @@
-use std::sync::{Mutex, Condvar, Arc, MutexGuard};
-use std::collections::hash_map::{HashMap, Entry};
+use super::{global::GlobalCache, CacheControl, ValueSize};
+use async_trait::async_trait;
+use std::collections::hash_map::{Entry, HashMap};
 use std::hash::Hash;
 use std::mem::replace;
-use std::time::{Instant, Duration};
-use super::{ValueSize, CacheControl, global::GlobalCache};
-use async_trait::async_trait;
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 struct Computed<V> {
     value: V,
@@ -20,7 +20,7 @@ impl<V> Value<V> {
     fn unwrap(self) -> V {
         match self {
             Value::Computed(v) => v.value,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -32,8 +32,10 @@ struct CacheInner<K, V> {
     entries: HashMap<K, Value<V>>,
 }
 
-impl<K, V> SyncCache<K, V> 
-    where K: Hash + Eq + Clone + Send + 'static, V: Clone + ValueSize + Send + 'static,
+impl<K, V> SyncCache<K, V>
+where
+    K: Hash + Eq + Clone + Send + 'static,
+    V: Clone + ValueSize + Send + 'static,
 {
     pub fn new() -> Arc<Self> {
         Self::with_name(None)
@@ -43,7 +45,7 @@ impl<K, V> SyncCache<K, V>
             name,
             inner: Mutex::new(CacheInner {
                 entries: HashMap::new(),
-            })
+            }),
         });
         GlobalCache::register(Arc::downgrade(&cache));
         cache
@@ -58,7 +60,7 @@ impl<K, V> SyncCache<K, V>
                     let condvar = condvar.clone();
                     return Self::poll(key, guard, condvar);
                 }
-            }
+            },
             Entry::Vacant(e) => {
                 let key = e.key().clone();
                 let condvar = Arc::new(Condvar::new());
@@ -84,15 +86,18 @@ impl<K, V> SyncCache<K, V>
                 let slot = replace(slot, Value::Computed(c));
                 match slot {
                     Value::InProcess(ref condvar) => condvar.notify_all(),
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
                 return value2;
             }
         }
     }
-    pub fn entries(arc: Arc<Self>) -> impl Iterator<Item=(K, V)> {
+    pub fn entries(arc: Arc<Self>) -> impl Iterator<Item = (K, V)> {
         let cache = Arc::try_unwrap(arc).ok().unwrap();
-            cache.inner.into_inner().unwrap()
+        cache
+            .inner
+            .into_inner()
+            .unwrap()
             .entries
             .into_iter()
             .map(|(k, v)| (k, v.unwrap()))
@@ -112,7 +117,9 @@ impl<K, V> SyncCache<K, V>
 
 #[async_trait]
 impl<K, V> CacheControl for SyncCache<K, V>
-    where K: Eq + Hash + Send + 'static, V: Clone + ValueSize + Send + 'static
+where
+    K: Eq + Hash + Send + 'static,
+    V: Clone + ValueSize + Send + 'static,
 {
     fn name(&self) -> Option<&str> {
         self.name.as_deref()
@@ -128,21 +135,19 @@ impl<K, V> CacheInner<K, V> {
         let mut size_sum = 0;
 
         let mut time_sum = 0.0;
-        self.entries.retain(|_, value| {
-            match value {
-                Value::Computed(ref entry) => {
-                    let elapsed = now.duration_since(entry.last_used);
-                    let value = entry.time / (entry.size as f64 * elapsed.as_secs_f64());
-                    if value > threshold {
-                        time_sum += entry.time;
-                        size_sum += entry.size;
-                        true
-                    } else {
-                        false
-                    }
+        self.entries.retain(|_, value| match value {
+            Value::Computed(ref entry) => {
+                let elapsed = now.duration_since(entry.last_used);
+                let value = entry.time / (entry.size as f64 * elapsed.as_secs_f64());
+                if value > threshold {
+                    time_sum += entry.time;
+                    size_sum += entry.size;
+                    true
+                } else {
+                    false
                 }
-                Value::InProcess(_) => true
             }
+            Value::InProcess(_) => true,
         });
         (size_sum, time_sum)
     }

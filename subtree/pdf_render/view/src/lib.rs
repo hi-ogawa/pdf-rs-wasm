@@ -1,12 +1,13 @@
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
-use pathfinder_view::{Config, Interactive, Context, Emitter, ElementState, KeyCode, KeyEvent};
-use pathfinder_renderer::scene::Scene;
 use pathfinder_geometry::vector::Vector2F;
+use pathfinder_renderer::scene::Scene;
+use pathfinder_view::{Config, Context, ElementState, Emitter, Interactive, KeyCode, KeyEvent};
 
-use pdf::file::File as PdfFile;
 use pdf::backend::Backend;
-use pdf_render::{Cache, SceneBackend, page_bounds, render_page};
+use pdf::file::File as PdfFile;
+use pdf_render::{page_bounds, render_page, Cache, SceneBackend};
 
 #[cfg(target_arch = "wasm32")]
 use pathfinder_view::WasmView;
@@ -28,14 +29,25 @@ impl<B: Backend> PdfView<B> {
 impl<B: Backend + 'static> Interactive for PdfView<B> {
     type Event = Vec<u8>;
     fn title(&self) -> String {
-        self.file.trailer.info_dict.as_ref()
+        self.file
+            .trailer
+            .info_dict
+            .as_ref()
             .and_then(|info| info.get("Title"))
             .and_then(|p| p.to_string().ok())
             .unwrap_or_else(|| "PDF View".into())
     }
     fn init(&mut self, ctx: &mut Context, sender: Emitter<Self::Event>) {
         ctx.num_pages = self.num_pages;
-        ctx.set_icon(image::load_from_memory_with_format(include_bytes!("../../logo.png"), image::ImageFormat::Png).unwrap().to_rgba8().into());
+        ctx.set_icon(
+            image::load_from_memory_with_format(
+                include_bytes!("../../logo.png"),
+                image::ImageFormat::Png,
+            )
+            .unwrap()
+            .to_rgba8()
+            .into(),
+        );
     }
     fn scene(&mut self, ctx: &mut Context) -> Scene {
         info!("drawing page {}", ctx.page_nr());
@@ -48,7 +60,9 @@ impl<B: Backend + 'static> Interactive for PdfView<B> {
         backend.finish()
     }
     fn mouse_input(&mut self, ctx: &mut Context, page: usize, pos: Vector2F, state: ElementState) {
-        if state != ElementState::Pressed { return; }
+        if state != ElementState::Pressed {
+            return;
+        }
         info!("x={}, y={}", pos.x(), pos.y());
     }
     fn keyboard_input(&mut self, ctx: &mut Context, event: &mut KeyEvent) {
@@ -59,14 +73,14 @@ impl<B: Backend + 'static> Interactive for PdfView<B> {
             let page = ctx.page_nr();
             match event.keycode {
                 KeyCode::Right => ctx.goto_page(page + 10),
-                KeyCode::Left =>  ctx.goto_page(page.saturating_sub(10)),
-                _ => return
+                KeyCode::Left => ctx.goto_page(page.saturating_sub(10)),
+                _ => return,
             }
         }
         match event.keycode {
             KeyCode::Right | KeyCode::PageDown => ctx.next_page(),
             KeyCode::Left | KeyCode::PageUp => ctx.prev_page(),
-            _ => return
+            _ => return,
         }
     }
 }
@@ -90,7 +104,11 @@ pub fn run() {
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn show(canvas: HtmlCanvasElement, context: WebGl2RenderingContext, data: &Uint8Array) -> WasmView {
+pub fn show(
+    canvas: HtmlCanvasElement,
+    context: WebGl2RenderingContext,
+    data: &Uint8Array,
+) -> WasmView {
     use pathfinder_resources::embedded::EmbeddedResourceLoader;
 
     let data: Vec<u8> = data.to_vec();
@@ -102,10 +120,5 @@ pub fn show(canvas: HtmlCanvasElement, context: WebGl2RenderingContext, data: &U
     let mut config = Config::new(Box::new(EmbeddedResourceLoader));
     config.zoom = false;
     config.pan = false;
-    WasmView::new(
-        canvas,
-        context,
-        config,
-        Box::new(view) as _
-    )
+    WasmView::new(canvas, context, config, Box::new(view) as _)
 }

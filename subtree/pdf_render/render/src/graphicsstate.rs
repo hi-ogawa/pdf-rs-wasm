@@ -1,17 +1,12 @@
 use pdf::object::ColorSpace;
 
+use crate::{backend::Stroke, Fill};
+use pathfinder_content::{fill::FillRule, outline::Outline, stroke::StrokeStyle};
 use pathfinder_geometry::transform2d::Transform2F;
-use pathfinder_content::{
-    fill::FillRule,
-    stroke::{StrokeStyle},
-    outline::Outline,
-};
 use pathfinder_renderer::{
+    paint::PaintId,
     scene::{ClipPath, ClipPathId},
-    paint::{PaintId},
 };
-use crate::{Fill, backend::Stroke};
-
 
 #[derive(Clone)]
 pub struct GraphicsState<'a> {
@@ -33,7 +28,6 @@ pub struct GraphicsState<'a> {
     pub stroke_alpha: f32,
     pub fill_alpha: f32,
 }
-
 
 impl<'a> GraphicsState<'a> {
     pub fn set_fill_color(&mut self, fill: Fill) {
@@ -84,7 +78,7 @@ impl<'a> GraphicsState<'a> {
     pub fn stroke(&self) -> Stroke {
         Stroke {
             style: self.stroke_style,
-            dash_pattern: self.dash_pattern.map(|(a, p)| (a.into(), p))
+            dash_pattern: self.dash_pattern.map(|(a, p)| (a.into(), p)),
         }
     }
 }
