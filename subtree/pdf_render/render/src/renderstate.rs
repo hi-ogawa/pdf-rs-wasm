@@ -6,7 +6,6 @@ use pdf::object::*;
 use pdf::primitive::{Dictionary, Primitive};
 
 use super::{
-    backend::Stroke,
     graphicsstate::GraphicsState,
     textstate::{Span, TextState},
     DrawMode, Fill, TextSpan,

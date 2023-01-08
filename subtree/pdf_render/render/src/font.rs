@@ -49,6 +49,7 @@ pub struct StandardCache {
     inner: Arc<SyncCache<String, Option<FontRc>>>,
     dir: PathBuf,
     fonts: HashMap<String, String>,
+    fonts_embedded: Option<FontRc>,
 }
 impl StandardCache {
     pub fn new(dir: PathBuf) -> Self {
@@ -60,6 +61,20 @@ impl StandardCache {
             inner: SyncCache::new(),
             dir,
             fonts,
+            fonts_embedded: None,
+        }
+    }
+
+    pub fn new_embedded() -> Self {
+        StandardCache {
+            inner: SyncCache::new(),
+            dir: PathBuf::new(),
+            fonts: HashMap::new(),
+            fonts_embedded: Some(
+                font::parse(include_bytes!("../../../pdf_fonts/n019003l.pfb"))
+                    .expect("invalid font")
+                    .into(),
+            ),
         }
     }
 }
@@ -93,6 +108,9 @@ pub fn load_font(
         }
         Some(Err(e)) => return Err(e),
         None => {
+            if let Some(font) = &cache.fonts_embedded {
+                return Ok(Some(FontEntry::build(font.clone(), pdf_font, resolve)?));
+            }
             let name = match pdf_font.name {
                 Some(ref name) => name.as_str(),
                 None => return Ok(None),

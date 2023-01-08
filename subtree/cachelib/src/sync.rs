@@ -1,10 +1,10 @@
 use super::{global::GlobalCache, CacheControl, ValueSize};
 use async_trait::async_trait;
+use instant::{Duration, Instant};
 use std::collections::hash_map::{Entry, HashMap};
 use std::hash::Hash;
 use std::mem::replace;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
-use std::time::{Duration, Instant};
 
 struct Computed<V> {
     value: V,

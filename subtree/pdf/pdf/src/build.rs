@@ -1,4 +1,4 @@
-use crate::content::*;
+use crate::content::Content;
 use crate::error::Result;
 use crate::object::*;
 
