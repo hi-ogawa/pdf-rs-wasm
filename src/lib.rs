@@ -5,7 +5,7 @@ use pdf_render::{
     tracer::{DrawItem, TraceCache, Tracer},
 };
 use schemars::JsonSchema;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -106,13 +106,18 @@ export { JsPdfFile, FileTrace }
 
 #[cfg(test)]
 pub mod tests {
-    use schemars::schema_for;
+    use schemars::{schema_for, JsonSchema};
     use wasm_bindgen_test::*;
     use web_sys::console;
 
+    use crate::FileTrace;
+
+    #[derive(JsonSchema)]
+    struct __RootSchema(FileTrace);
+
     #[wasm_bindgen_test]
     fn export_json_schema() {
-        let schema = schema_for!(super::FileTrace);
+        let schema = schema_for!(__RootSchema);
         let schema_str = serde_json::to_string_pretty(&schema).unwrap();
         if cfg!(feature = "export_json_schema") {
             console::log_1(&"__JSON_SCHEMA_START__".into());
