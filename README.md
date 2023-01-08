@@ -4,7 +4,6 @@
 the goal is to be a robust replacement of [pdf2json](https://github.com/modesty/pdf2json) on javascript ecosystem.
 
 ```sh
-pnpm workaround-wasm-bindgen-test # fix custom package.json issue
 pnpm i
 pnpm build
 pnpm test
