@@ -6,7 +6,7 @@ describe("cli", () => {
   it("basic", async () => {
     expect(
       await promisify(exec)(
-        "node build/index.js ../../subtree/pdf/files/example.pdf"
+        "node build/index.cjs ../../subtree/pdf/files/example.pdf"
       )
     ).toMatchInlineSnapshot(`
       {

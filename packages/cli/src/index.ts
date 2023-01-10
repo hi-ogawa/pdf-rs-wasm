@@ -14,7 +14,6 @@ export async function main() {
   }
 
   // wasm binary file
-  const require = createRequire(import.meta.url);
   const WASM_PATH = require.resolve("@hiogawa/pdf-rs-wasm/pkg/index_bg.wasm");
 
   // compile wasm
