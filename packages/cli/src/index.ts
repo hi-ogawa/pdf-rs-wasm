@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import process from "node:process";
-import { createRequire } from "node:module";
 import fs from "node:fs";
 import { initSync, PdfParser } from "@hiogawa/pdf-rs-wasm";
 
@@ -14,7 +13,6 @@ export async function main() {
   }
 
   // wasm binary file
-  const require = createRequire(import.meta.url);
   const WASM_PATH = require.resolve("@hiogawa/pdf-rs-wasm/pkg/index_bg.wasm");
 
   // compile wasm
