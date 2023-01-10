@@ -57,7 +57,8 @@ fn parse_base_script_list<'a>(data: &'a [u8], tags: impl Array<Item=Tag>) -> Res
 fn parse_base_script_table(data: &[u8]) -> R<(u16, impl Iterator<Item=i16> + '_)> {
     let (i, base_values_offset) = offset(data)?;
     let (i, default_min_max_offset) = offset(data)?;
-    let (_, base_values) = parse_base_values_table(base_values_offset.of(data).unwrap())?;
+    let offset = base_values_offset.of(data).map_or_else(|| Err(todo!()), Ok)?;
+    let (_, base_values) = parse_base_values_table(offset)?;
 
     Ok((i, base_values))
 }
