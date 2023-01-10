@@ -1,6 +1,6 @@
 {
   "name": "@hiogawa/pdf-rs-wasm-cli",
-  "version": "1.0.0-pre.0",
+  "version": "1.0.0-pre.1",
   "bin": "./build/index.cjs",
   "files": [
     "build/*"
