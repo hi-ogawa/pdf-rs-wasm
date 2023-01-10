@@ -1,0 +1,44 @@
+[package]
+name = "font"
+version = "0.1.0"
+authors = ["Sebastian Köln <s3bk@protonmail.org>"]
+edition = "2018"
+
+[features]
+unstable = ["slotmap/unstable", "tuple/nightly"]
+svg = ["svg_dom", "inflate"]
+woff = ["brotli-decompressor", "inflate"]
+
+[dependencies]
+pdf_encoding = "0.3"
+pathfinder_geometry = { git = "https://github.com/servo/pathfinder/" }
+pathfinder_content = { git = "https://github.com/servo/pathfinder/" }
+pathfinder_color = { git = "https://github.com/servo/pathfinder/" }
+tuple = { git = "https://github.com/s3bk/tuple/" }
+nom = "5.1"
+log = "0.4"
+rand = { version = "0.7", features = ["wasm-bindgen"] }
+slotmap = { version = "1.0" }
+decorum = "0.3"
+itertools = "0.10"
+indexmap = "1.9"
+brotli-decompressor = { version = "2.3", optional = true }
+inflate = { version = "0.4.5", optional = true }
+svg_dom = { git = "https://github.com/s3bk/svg", optional=true }
+
+[dev-dependencies]
+svg_dom = { git = "https://github.com/s3bk/svg" }
+svg_draw = { git = "https://github.com/s3bk/svg" }
+pathfinder_renderer = { git = "https://github.com/servo/pathfinder/" }
+pathfinder_export = { git = "https://github.com/servo/pathfinder/" }
+walkdir = "2.3"
+env_logger = { version = "*" }
+memmap = "*"
+
+[patch."https://github.com/s3bk/svg"]
+svg_dom = { path = "../svg/dom" }
+svg_draw = { path = "../svg/draw" }
+svg_text = { path = "../svg/text" }
+
+[patch."https://github.com/pdf-rs/font"]
+font = { path = "." }
