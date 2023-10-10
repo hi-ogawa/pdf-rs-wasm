@@ -1,37 +1,49 @@
 {
   "name": "@hiogawa/pdf-rs-wasm",
-  "version": "1.0.0-pre.1",
-  "main": "./pkg/index.cjs",
-  "module": "./pkg/index.mjs",
-  "types": "./pkg/index.d.ts",
-  "files": [
-    "pkg/*"
-  ],
-  "license": "MIT",
+  "version": "1.0.0-pre.2",
+  "homepage": "https://github.com/hi-ogawa/pdf-rs-wasm/tree/main/packages/wasm",
   "repository": {
     "type": "git",
     "url": "https://github.com/hi-ogawa/pdf-rs-wasm",
     "directory": "packages/wasm"
   },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./pkg/index.js",
+      "types": "./pk/index.d.ts"
+    },
+    "./pkg/index_bg.wasm": {
+      "import": "./pkg/index_bg.wasm"
+    }
+  },
+  "main": "./pkg/index.js",
+  "types": "./pk/index.d.ts",
+  "bin": "./bin/cli.js",
+  "files": [
+    "dist/*",
+    "pkg/*"
+  ],
   "scripts": {
     "build": "run-s build:*",
     "build-dev": "BUILD_TYPE=--dev pnpm build",
     "build:wasm": "wasm-pack build --target web --out-name index ${BUILD_TYPE:---release}",
-    "build:fix-pkg": "bash misc/fix-pkg.sh",
+    "build:fix-pkg": "rm -f pkg/package.json pkg/.gitignore pkg/README.md",
     "build:types": "run-s export-json-schema json-schema-to-ts",
+    "build:tsup": "tsup",
     "export-json-schema": "wasm-pack test --node -F export_json_schema | sed '0,/__JSON_SCHEMA_START__/d;/__JSON_SCHEMA_END__/Q' > pkg/types.schema.json",
     "json-schema-to-ts": "json2ts --no-additionalProperties pkg/types.schema.json > pkg/types.ts",
     "test": "vitest run",
     "release": "pnpm publish --access public"
   },
   "devDependencies": {
-    "@babel/cli": "^7.20.7",
-    "@babel/core": "^7.20.12",
-    "@babel/plugin-transform-modules-commonjs": "^7.20.11",
+    "@types/node": "^20",
+    "@hiogawa/tiny-cli": "0.0.4-pre.1",
     "json-schema-to-typescript": "^11.0.2",
     "wasm-pack": "^0.10.3"
   },
   "volta": {
-    "node": "16.19.0"
+    "node": "20.8.0"
   }
 }

@@ -1,25 +1,12 @@
 # pdf-rs-wasm
 
-[wasm-bindgen](https://github.com/rustwasm/wasm-bindgen/) for [pdf-rs](https://github.com/pdf-rs/pdf)
-
-```sh
-# development
-pnpm i
-pnpm build-wasm
-pnpm build-cli
-pnpm test
-```
-
-## npm packages
-
-- https://www.npmjs.com/package/@hiogawa/pdf-rs-wasm
-- https://www.npmjs.com/package/@hiogawa/pdf-rs-wasm-cli
+[wasm-bindgen](https://github.com/rustwasm/wasm-bindgen/) wrapper for [pdf-rs](https://github.com/pdf-rs/pdf)
 
 ## example
 
 ```sh
-volta install @hiogawa/pdf-rs-wasm-cli
-pdf-rs-wasm-cli subtree/pdf/files/example.pdf
+volta install @hiogawa/pdf-rs-wasm
+pdf-rs-wasm subtree/pdf/files/example.pdf
 ```
 
 <details><summary>reveal output</summary>
