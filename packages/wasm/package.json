@@ -1,10 +1,14 @@
 {
   "name": "@hiogawa/pdf-rs-wasm",
   "version": "1.0.0-pre.2",
+  "homepage": "https://github.com/hi-ogawa/pdf-rs-wasm/tree/main/packages/wasm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hi-ogawa/pdf-rs-wasm",
+    "directory": "packages/wasm"
+  },
+  "license": "MIT",
   "type": "module",
-  "main": "./pkg/index.js",
-  "types": "./pk/index.d.ts",
-  "bin": "./bin/cli.js",
   "exports": {
     ".": {
       "import": "./pkg/index.js",
@@ -14,17 +18,13 @@
       "import": "./pkg/index_bg.wasm"
     }
   },
+  "main": "./pkg/index.js",
+  "types": "./pk/index.d.ts",
+  "bin": "./bin/cli.js",
   "files": [
     "dist/*",
     "pkg/*"
   ],
-  "license": "MIT",
-  "homepage": "https://github.com/hi-ogawa/pdf-rs-wasm/tree/main/packages/wasm",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/hi-ogawa/pdf-rs-wasm",
-    "directory": "packages/wasm"
-  },
   "scripts": {
     "build": "run-s build:*",
     "build-dev": "BUILD_TYPE=--dev pnpm build",
