@@ -1,9 +1,8 @@
 {
   "scripts": {
-    "build-wasm": "pnpm -C packages/wasm build",
-    "build-cli": "pnpm -C packages/cli build",
+    "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "tsc": "tsc -b packages/wasm packages/cli",
+    "tsc": "tsc -b packages/wasm",
     "lint": "run-s lint:*",
     "lint-check": "run-s lint-check:*",
     "lint:prettier": "prettier --write --cache .",
