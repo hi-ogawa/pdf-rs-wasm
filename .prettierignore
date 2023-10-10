@@ -4,3 +4,4 @@ target
 pkg
 pnpm-lock.yaml
 subtree
+dist

@@ -14,8 +14,15 @@ pub struct PdfParser {}
 
 #[wasm_bindgen]
 impl PdfParser {
-    pub fn parse_operations(data: &[u8]) -> Result<JsPdfFileDts, JsError> {
-        let file = pdf::file::File::from_data(data)?;
+    pub fn parse_operations(
+        data: &[u8],
+        password: Option<String>,
+    ) -> Result<JsPdfFileDts, JsError> {
+        let file = if let Some(password) = password {
+            pdf::file::File::from_data_password(data, password.as_bytes())?
+        } else {
+            pdf::file::File::from_data(data)?
+        };
 
         let mut js_file = JsPdfFile::default();
 

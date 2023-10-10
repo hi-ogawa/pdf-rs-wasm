@@ -1,13 +1,14 @@
 {
-  "extends": "@tsconfig/strictest",
-  "include": ["test"],
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "include": ["test", "src-js"],
   "compilerOptions": {
     "noUncheckedIndexedAccess": false,
     "checkJs": false,
     "noEmit": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "target": "ESNext",
-    "lib": ["ESNext", "DOM"]
+    "lib": ["ESNext", "DOM"],
+    "types": ["@types/node"]
   }
 }
