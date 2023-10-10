@@ -40,8 +40,15 @@ impl PdfParser {
         Ok(JsValue::from_serde(&js_file)?.into())
     }
 
-    pub fn parse_trace(data: &[u8]) -> Result<JsPdfFileTraceDts, JsError> {
-        let file = pdf::file::File::from_data(data)?;
+    pub fn parse_trace(
+        data: &[u8],
+        password: Option<String>,
+    ) -> Result<JsPdfFileTraceDts, JsError> {
+        let file = if let Some(password) = password {
+            pdf::file::File::from_data_password(data, password.as_bytes())?
+        } else {
+            pdf::file::File::from_data(data)?
+        };
         let mut cache = TraceCache::new_embedded();
         let mut result = JsPdfFileTrace::default();
         for page in file.pages() {
